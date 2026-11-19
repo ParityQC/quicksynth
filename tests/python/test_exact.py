@@ -59,7 +59,9 @@ def _as_numpy(W: mpmath.matrix) -> np.ndarray:
 
 def test_readme_exact_layer_example() -> None:
     """The README's exact-layer example runs as written."""
-    blocks = re.findall(r"```python\n(.*?)```", (ROOT / "README.md").read_text(), re.S)
+    blocks = re.findall(
+        r"```python\n(.*?)```", (ROOT / "README.md").read_text(encoding="utf-8"), re.S
+    )
     (example,) = [b for b in blocks if "matrix_word" in b]
     exec(example, {})
 
@@ -122,7 +124,7 @@ def test_to_numpy_of_the_reference_elements() -> None:
     core's order.
     """
     path = ROOT / "tests" / "fixtures" / "golden_words.json"
-    for row in json.loads(path.read_text())["elements"]:
+    for row in json.loads(path.read_text(encoding="utf-8"))["elements"]:
         element = CyclotomicMatrix(row["element"][0], tuple(row["element"][1:]))
         want = np.array(row["matrix"][0::2]) + 1j * np.array(row["matrix"][1::2])
         got = element.to_numpy()
@@ -134,7 +136,7 @@ def test_elements_past_64_bits_to_numpy() -> None:
     """The matrices of the reference's elements past 64 bits, which it holds
     without matrices, against a 50-digit evaluation."""
     path = ROOT / "tests" / "fixtures" / "golden_words.json"
-    rows = json.loads(path.read_text())["past_64_bits"]["rows"]
+    rows = json.loads(path.read_text(encoding="utf-8"))["past_64_bits"]["rows"]
     for row in rows:
         element = CyclotomicMatrix(row["element"][0], tuple(row["element"][1:]))
         assert element == word_unitary(row["word"])
