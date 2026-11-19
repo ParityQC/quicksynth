@@ -18,7 +18,9 @@
 #include <array>
 #include <cmath>
 #include <complex>
+#include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <random>
 #include <string>
 #include <utility>
@@ -72,6 +74,13 @@ Matrix rotation(double theta, char axis);
 extern const Matrix kH, kS, kX, kY, kZ, kI;
 // The word's matrix, its letters multiplied in long double.
 Matrix letters_multiplied(const std::string& word);
+// The rounding letters_multiplied() adds to a distance: negligible where long
+// double carries 64 bits; where it is a double (MSVC, Apple arm64) measured at
+// most 2.3e-15 on words of 599 to 1,013 letters, allowed 2e-17 a letter.
+inline double letters_multiplied_error(size_t letters) {
+    return std::numeric_limits<long double>::digits > 53 ? 0.0
+                                                         : 2e-17 * static_cast<double>(letters);
+}
 
 // (n_T, n_sqrtT); inverses count as the gate.
 std::pair<int64_t, int64_t> magic_counts(const std::string& word);

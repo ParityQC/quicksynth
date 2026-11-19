@@ -52,7 +52,8 @@ TEST_CASE("the distances of the reference's words past 64 bits") {
     for (const json& r : golden("words")["past_64_bits"]["rows"]) {
         const std::string word = r["word"];
         INFO(word);
-        CHECK(precise_distance(word, unitary_of(letters_multiplied(word))) <= kTolerance);
+        CHECK(precise_distance(word, unitary_of(letters_multiplied(word))) <=
+              kTolerance + letters_multiplied_error(word.size()));
     }
 }
 

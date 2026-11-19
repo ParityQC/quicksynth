@@ -19,7 +19,12 @@ import numpy as np
 import pytest
 
 import quicksynth as sq
-from oracles import diamond_distance, haar_random_unitary, magic_counts
+from oracles import (
+    chord_diamond_distance,
+    diamond_distance,
+    haar_random_unitary,
+    magic_counts,
+)
 from quicksynth import api
 
 
@@ -296,7 +301,7 @@ def test_clifford_t_rotations_take_the_rotation_path(axis: str) -> None:
         r = sq.synthesise(U, eps, gateset="clifford_t")
         assert (r.stages, r.certified, r.n_q) == (0, True, 0)
         assert magic_counts(r.word) == (r.n_t, 0) and r.cost == r.n_t
-        assert r.distance <= eps and diamond_distance(r.unitary, U) <= eps
+        assert r.distance <= eps and chord_diamond_distance(r.unitary, U) <= eps
         assert r.search is not None and r.search["source"] == "rotation"
         assert r.log and all(e["search"] == "rotation" for e in r.log)
         assert all(e["stage"] == 0 for e in r.log)
@@ -326,7 +331,7 @@ def test_near_diagonal_targets_take_the_path_up_to_the_tolerance() -> None:
     for f, path in ((1e-3, True), (1e-1, False)):
         U = C @ sq.rotation(0.7) @ sq.rotation(2 * math.asin(f * eps), "x")
         r = sq.synthesise(U, eps, gateset="clifford_t")
-        assert r.distance <= eps and diamond_distance(r.unitary, U) <= eps
+        assert r.distance <= eps and chord_diamond_distance(r.unitary, U) <= eps
         assert (r.stages == 0) == path
         if path:
             assert not r.certified
@@ -353,7 +358,7 @@ def test_sqrt_t_rotations_take_the_rotation_path(axis: str) -> None:
             assert sum(e["solvable"] for e in r.log) >= budget
             assert magic_counts(r.word) == (r.n_t, r.n_q)
             assert r.cost == r.n_t + 3 * r.n_q
-            assert r.distance <= eps and diamond_distance(r.unitary, U) <= eps
+            assert r.distance <= eps and chord_diamond_distance(r.unitary, U) <= eps
         assert default.cost <= fast.cost <= chosen.cost
 
 
