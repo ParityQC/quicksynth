@@ -1,0 +1,12 @@
+BasedOnStyle: Google
+ColumnLimit: 100
+IndentWidth: 4
+AccessModifierOffset: -2
+AllowShortCaseLabelsOnASingleLine: true
+DerivePointerAlignment: false
+PointerAlignment: Left
+# Includes go in pipeline order, the file's own directory first
+# (docs/architecture.md), which no sorting rule can express.
+SortIncludes: Never
+# An error text stays on one line, where a search finds it.
+BreakStringLiterals: false

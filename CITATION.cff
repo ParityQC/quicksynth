@@ -1,0 +1,61 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software, please cite the paper given under
+  preferred-citation. The paper, with a detailed description of the algorithm
+  and of the results, is coming soon.
+title: "QuickSynth"
+abstract: >-
+  Near-optimal approximate synthesis of single-qubit unitaries over Clifford+T and
+  Clifford+sqrt(T) at any magic-state price: QuickSynth, a lattice scan of whole
+  denominator scales and a prefix split, in a C++ library with a Python interface.
+type: software
+authors:
+  - family-names: Naranjo-Bejarano
+    given-names: Enrique
+    affiliation: "Parity Quantum Computing GmbH, Innsbruck, Austria; Institute for Theoretical Physics, University of Innsbruck, Innsbruck, Austria"
+  - family-names: Fleckenstein
+    given-names: Christoph
+    affiliation: "Parity Quantum Computing GmbH, Innsbruck, Austria"
+  - family-names: Singal
+    given-names: Tanmay
+    affiliation: "Parity Quantum Computing Germany GmbH, Hamburg, Germany"
+  - family-names: Goeller
+    given-names: Christophe
+    affiliation: "Parity Quantum Computing France SAS, Paris, France"
+  - family-names: Lechner
+    given-names: Wolfgang
+    affiliation: "Parity Quantum Computing GmbH, Innsbruck, Austria; Institute for Theoretical Physics, University of Innsbruck, Innsbruck, Austria; Parity Quantum Computing Germany GmbH, Hamburg, Germany; Parity Quantum Computing France SAS, Paris, France"
+version: 1.0.0
+repository-code: "https://github.com/ParityQC/quicksynth"
+keywords:
+  - quantum computing
+  - circuit synthesis
+  - Clifford+T
+  - Clifford+sqrt(T)
+  - lattice enumeration
+license: MIT
+preferred-citation:
+  type: article
+  title: "QuickSynth: Fast near-optimal synthesis of single-qubit unitaries over Clifford+T and Clifford+sqrt(T) at any magic-state price"
+  authors:
+    - family-names: Naranjo-Bejarano
+      given-names: Enrique
+      affiliation: "Parity Quantum Computing GmbH, Innsbruck, Austria; Institute for Theoretical Physics, University of Innsbruck, Innsbruck, Austria"
+    - family-names: Fleckenstein
+      given-names: Christoph
+      affiliation: "Parity Quantum Computing GmbH, Innsbruck, Austria"
+    - family-names: Singal
+      given-names: Tanmay
+      affiliation: "Parity Quantum Computing Germany GmbH, Hamburg, Germany"
+    - family-names: Goeller
+      given-names: Christophe
+      affiliation: "Parity Quantum Computing France SAS, Paris, France"
+    - family-names: Lechner
+      given-names: Wolfgang
+      affiliation: "Parity Quantum Computing GmbH, Innsbruck, Austria; Institute for Theoretical Physics, University of Innsbruck, Innsbruck, Austria; Parity Quantum Computing Germany GmbH, Hamburg, Germany; Parity Quantum Computing France SAS, Paris, France"
+  year: 2026
+  status: in-preparation
+  notes: >-
+    Coming soon, with a detailed description of the algorithm and of the
+    results.
+  # add the arXiv identifier (identifiers: - type: other, value: arXiv:XXXX.XXXXX) on submission

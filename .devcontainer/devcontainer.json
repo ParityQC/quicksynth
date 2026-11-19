@@ -1,0 +1,60 @@
+// Shared dev container config: "Reopen in Container" uses it as is. For
+// personal settings, `make devcontainer` creates .devcontainer/local/, which
+// git ignores, and VS Code then offers both configs (README.md in this folder).
+{
+  "name": "quicksynth",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "remoteUser": "vscode",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+
+  // Each checkout and worktree gets its own environment, .venv-container in
+  // its root: a relative UV_PROJECT_ENVIRONMENT resolves against the project
+  // root. It never collides with a host .venv. DEV_VENV puts this checkout's
+  // environment on PATH in login shells too.
+  "remoteEnv": {
+    "UV_PROJECT_ENVIRONMENT": ".venv-container",
+    "DEV_VENV": "${containerWorkspaceFolder}/.venv-container",
+    "PATH": "${containerWorkspaceFolder}/.venv-container/bin:${containerEnv:PATH}"
+  },
+
+  // A named volume keeps the uv cache warm across rebuilds.
+  "mounts": [
+    "source=quicksynth-uv-cache,target=/home/vscode/.cache/uv,type=volume"
+  ],
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.mypy-type-checker",
+        "charliermarsh.ruff",
+        "ms-vscode.cpptools-extension-pack",
+        "ms-vscode.cmake-tools",
+        "llvm-vs-code-extensions.vscode-clangd",
+        "tamasfe.even-better-toml",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "${containerWorkspaceFolder}/.venv-container/bin/python",
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": ["tests/python"],
+        "editor.formatOnSave": true,
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.codeActionsOnSave": {
+            "source.fixAll.ruff": "explicit",
+            "source.organizeImports.ruff": "explicit"
+          }
+        },
+        "cmake.generator": "Ninja",
+        "C_Cpp.default.cppStandard": "c++17"
+      }
+    }
+  }
+}

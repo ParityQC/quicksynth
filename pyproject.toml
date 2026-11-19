@@ -1,0 +1,182 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "nanobind>=2.4"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "quicksynth"
+version = "1.0.0"
+description = "QuickSynth: fast near-optimal synthesis of single-qubit unitaries over Clifford+T and Clifford+sqrt(T) at any magic-state price"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE.txt"]
+# the authors of CITATION.cff
+authors = [
+    { name = "Enrique Naranjo-Bejarano", email = "e.bejarano@parityqc.com" },
+    { name = "Christoph Fleckenstein" },
+    { name = "Tanmay Singal" },
+    { name = "Christophe Goeller" },
+    { name = "Wolfgang Lechner" },
+]
+keywords = ["quantum computing", "circuit synthesis", "Clifford+T", "sqrt-T", "magic states", "lattice enumeration"]
+classifiers = [
+    "Private :: Do Not Upload", # remove once a release target is decided
+    "Intended Audience :: Science/Research",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "numpy>=2.0",
+]
+
+[project.scripts]
+quicksynth = "quicksynth.cli:main"
+
+[project.optional-dependencies]
+plot = ["matplotlib>=3.8"]
+# Toolchain for building the C++ core outside of pip's isolated build (make cpp,
+# IDE integration); pip/uv fetch these on their own when building the wheel.
+cpp = [
+    "scikit-build-core>=0.10",
+    "nanobind>=2.4",
+    "cmake>=3.28",
+    "ninja>=1.11",
+]
+
+[project.urls]
+Repository = "https://github.com/ParityQC/quicksynth"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "pytest-xdist>=3.6",
+    "scipy>=1.14",
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "pre-commit>=4.0",
+    "mpmath>=1.3",
+]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+wheel.packages = ["python/quicksynth"]
+cmake.build-type = "Release"
+# Editable installs (uv sync, pip install -e .) import the Python sources in
+# place from python/quicksynth; the compiled module is a copy installed in
+# site-packages. build/{wheel_tag} is CMake's build tree, reused by make cpp.
+editable.mode = "redirect"
+editable.rebuild = false
+sdist.exclude = ["internal", ".cache", "build"]
+
+# Windows: the core needs clang-cl (CMakeLists.txt). scikit-build-core builds
+# there with Visual Studio unless CMAKE_GENERATOR names another generator, and
+# Visual Studio's ClangCL toolset is clang-cl; with another generator, set
+# CMAKE_CXX_COMPILER=clang-cl instead.
+[[tool.scikit-build.overrides]]
+if.platform-system = "^win32"
+if.env.CMAKE_GENERATOR = false
+cmake.args = ["-T", "ClangCL"]
+
+# The wheels, built by cibuildwheel: CPython 3.12 to 3.14 on manylinux x86_64
+# and aarch64, macOS arm64 and x86_64, and Windows AMD64. Each runner builds its
+# own architecture ("native"), so CI picks the runner of each. The test runs
+# the installed wheel against the tests that need neither the paper's records
+# nor the source tree's build.
+[tool.cibuildwheel]
+build = ["cp312-*", "cp313-*", "cp314-*"]
+skip = ["*-musllinux_*"]
+archs = ["native"]
+# out of the way of a development build in build/{wheel_tag}
+config-settings = { "build-dir" = "build/cibuildwheel/{wheel_tag}" }
+test-requires = ["pytest>=8.3", "mpmath>=1.3"]
+test-command = [
+    "quicksynth pi/4 1e-2 --json",
+    """pytest -p no:cacheprovider -m "not slow" {project}/tests/python/test_api.py \
+    {project}/tests/python/test_cli.py {project}/tests/python/test_counting.py \
+    {project}/tests/python/test_deploy.py {project}/tests/python/test_exact.py \
+    {project}/tests/python/test_golden.py {project}/tests/python/test_oracles.py \
+    {project}/tests/python/test_stopping_rule.py""",
+]
+
+[tool.cibuildwheel.macos]
+# 11.0, the first macOS on arm64, for both architectures
+environment = { MACOSX_DEPLOYMENT_TARGET = "11.0" }
+
+[tool.cibuildwheel.windows]
+# delvewheel copies the DLLs the module needs beyond Windows and Python, such
+# as the C++ runtime, into the wheel
+repair-wheel-command = "delvewheel repair -w {dest_dir} {wheel}"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
+# counting.py (the paper's counting) for test_counting.py and test_paper.py;
+# tools/fingerprint.py runs the cases of test_fingerprint.py
+pythonpath = ["tests/python", "tests/fixtures", "tools"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "slow: long-running tests, deselect with -m 'not slow'",
+]
+
+[tool.coverage.run]
+source = ["quicksynth"]
+branch = true
+
+[tool.ruff]
+line-length = 88
+src = ["python", "tests/python"]
+target-version = "py312"
+
+[tool.ruff.format]
+# The README aligns the comments of its example; leave Markdown to its authors.
+exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "N",        # pep8-naming
+    "UP",       # pyupgrade
+    "B",        # bugbear
+    "SIM",      # simplify
+    "RUF",      # ruff-specific
+]
+ignore = [
+    "N802", # method names such as apply_X mirror the gate names
+    "N803",
+    "N806", # local variables H, S, Q are gate names, not constants
+    "E741", # `l` is a standard index name in the synthesis literature
+]
+
+[tool.ruff.lint.isort]
+# the compiled quicksynth._core has no source file under python/
+known-first-party = ["quicksynth"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["python", "tests"]
+mypy_path = "tests/fixtures:tools"
+strict = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+disallow_untyped_defs = false # tighten once the API stabilises
+
+[[tool.mypy.overrides]]
+# verify_extra and window_rule: the window study's scripts, which
+# tests/fixtures/make_window.py imports from the directory it is given
+module = ["scipy.*", "mpmath.*", "quicksynth._core", "verify_extra", "window_rule"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# tests/fixtures/check_relative_norm.py; cypari2 is not a dependency
+module = ["cypari2"]
+ignore_missing_imports = true
+
+[tool.uv]
+default-groups = ["dev"]

@@ -1,0 +1,10 @@
+# Template of a developer's own layer on the shared dev image. `make
+# devcontainer` copies it to .devcontainer/local/Dockerfile, which git ignores
+# (README.md in this folder).
+FROM quicksynth-dev-base
+
+# Add your own tools here, for example:
+# USER root
+# RUN apt-get update && apt-get install -y --no-install-recommends valgrind \
+#     && rm -rf /var/lib/apt/lists/*
+# USER vscode

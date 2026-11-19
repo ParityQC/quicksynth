@@ -1,0 +1,139 @@
+name: Wheels
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  # weekly, so that a breakage of the wheel builds alone (the runners, the
+  # repair tools) shows up before a release tag
+  schedule:
+    - cron: "37 3 * * 1"
+  pull_request:
+    paths:
+      - pyproject.toml
+      - CMakeLists.txt
+      - .github/workflows/wheels.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # the dev container's uv, as in ci.yml
+  UV_VERSION: "0.12.17"
+
+jobs:
+  wheels:
+    name: Wheels (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # [tool.cibuildwheel] builds each runner's own architecture only. While
+        # the repository is private, where arm64, macOS and Windows minutes are
+        # billed, only a manual run builds beyond linux-x86_64; a public
+        # repository builds all five on pushes, tags, pull requests and manual
+        # runs. The weekly run builds linux-x86_64 only: a schedule event does
+        # not carry the repository's visibility.
+        include: >-
+          ${{ fromJSON(github.event_name != 'workflow_dispatch'
+            && (github.event.repository.private || github.event_name == 'schedule')
+            && '[{"platform": "linux-x86_64", "os": "ubuntu-latest"}]'
+            || '[{"platform": "linux-x86_64", "os": "ubuntu-latest"},
+                 {"platform": "linux-aarch64", "os": "ubuntu-24.04-arm"},
+                 {"platform": "macos-arm64", "os": "macos-15"},
+                 {"platform": "macos-x86_64", "os": "macos-15-intel"},
+                 {"platform": "windows-amd64", "os": "windows-latest"}]') }}
+    runs-on: ${{ matrix.os }}
+    # Windows has not had a green run yet; remove this once it has, and before
+    # the publish job below is enabled.
+    continue-on-error: ${{ matrix.platform == 'windows-amd64' }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pypa/cibuildwheel@f9b966cfadf4109556cadc5bb39ddb72d0ce664e # v4.3.5
+        with:
+          output-dir: wheelhouse
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: wheels-${{ matrix.platform }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  sdist:
+    name: Source distribution
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: "3.12"
+
+      # uv build builds the sdist, then a wheel from it, which shows that the
+      # sdist is complete; only the sdist is kept
+      - name: Build
+        run: uv build
+
+      # the paper's material, now in internal/, before the move in data/ and
+      # docs/paper/, and formal/
+      - name: The sdist leaves out the paper's material
+        run: |
+          if tar -tzf dist/*.tar.gz | grep -E '^[^/]+/(internal|data|docs/paper|formal)/'; then
+            echo "::error::the sdist contains internal/, data/, docs/paper/ or formal/"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    # Disabled until the PyPI project exists. To
+    # enable it, drop "false &&", remove "Private :: Do Not Upload" from the
+    # classifiers in pyproject.toml (PyPI rejects it) and Windows's
+    # continue-on-error above, and add the trusted publisher on PyPI for this
+    # workflow and the environment pypi.
+    if: false && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [wheels, sdist]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/quicksynth
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: pyproject.toml
+          sparse-checkout-cone-mode: false
+
+      - name: The tag is v and the version in pyproject.toml
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::the tag is $GITHUB_REF_NAME, but pyproject.toml has version $version"
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
