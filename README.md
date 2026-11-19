@@ -4,10 +4,10 @@ Near-optimal synthesis of single-qubit unitaries over **Clifford+T** and
 **Clifford+√T** at any magic-state price. QuickSynth is implemented in C++
 with an easy to use Python interface.
 
-Given a 2x2 unitary and a tolerance ε, QuickSynth returns a gate word over
+Given a 2x2 unitary and a tolerance ε, QuickSynth returns a word over
 `H, S, X, Y, Z, T, Q` and its inverses `s, t, q` (`Q` = √T) within ε in
 diamond distance, up to a global phase, at the least magic-state cost
-`t_cost·n_T + q_cost·n_√T` it can find..
+`t_cost·n_T + q_cost·n_√T` it can find.
 
 Every answer is checked before it is returned. The same input always gives the
 same word.
