@@ -1,8 +1,5 @@
 # QuickSynth
 
-**[Preliminary results](RESULTS.md):** cost and compile time against
-cyclosynth and pygridsynth, ahead of the paper.
-
 Near-optimal synthesis of single-qubit unitaries over **Clifford+T** and
 **Clifford+√T** at any magic-state price. QuickSynth is implemented in C++
 with an easy to use Python interface. If you use the algorithm for any
@@ -20,6 +17,9 @@ double precision without cancellation (typically to about 1e-16, at most
 4.4e-16 measured), must lie within ε − 5e-16. The same input always gives the
 same word, and between two magic gates a word carries at most two Clifford
 letters.
+
+**[Preliminary benchmark results](RESULTS.md):** cost and compile time against
+cyclosynth and pygridsynth. To be published soon. 
 
 ## Installation
 
