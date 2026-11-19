@@ -108,14 +108,6 @@ for many calls. The most used options:
 | `workers` | `1` | threads for the scan's walk |
 | `time_limit` | `None` | seconds after which no further search stage starts |
 
-`r.certified` says whether the cost is proved minimal or is an upper bound.
-Every option, and how the search uses them, is in
-[docs/python-api.md](docs/python-api.md).
-
-The exact layer is available on its own, at the package's top level. A word's
-element `M / √2^k` over `Z[ζ16]` is exact, in integers of any size, and its
-price and a cheapest word for it are read off its normal form. That word is the
-element up to a global phase `ζ^j`:
 
 ```python
 from quicksynth import bloch_image, matrix_word, normal_form, price, word_unitary
