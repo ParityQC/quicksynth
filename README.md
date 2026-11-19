@@ -57,10 +57,10 @@ make demo                # examples/quickstart.py
 ```
 
 The repository also has a dev container (Python 3.12, uv and a C++
-toolchain) for "Reopen in Container"
+toolchain) for developers
 ([.devcontainer/README.md](.devcontainer/README.md)).
 [docs/development.md](docs/development.md) covers the build, the wheels and the
-tests, and [CONTRIBUTING.md](CONTRIBUTING.md) the checks a change must pass.
+tests, and [CONTRIBUTING.md](CONTRIBUTING.md) the contribution guidelines.
 
 ## Command line
 
@@ -94,11 +94,10 @@ r.to_qasm()    # OpenQASM 3, sqrt(T) as p(pi/8)
 r.as_dict()
 ```
 
-`synthesise(target, epsilon, **overrides)` accepts any 2x2 unitary; a matrix
-within 1e-6 of unitary (float32 included) is replaced by the nearest unitary.
-`synthesise_rotation(theta, epsilon, axis="z", ...)` does the same for a
-rotation, and `QuickSynth(config=None, **overrides)` keeps one configuration
-for many calls. The most used options:
+`synthesise(target, epsilon, **overrides)` accepts any 2x2 single qubit unitary 
+unitary and output the synthesised approximate unitary within epsilon of the input.
+`synthesise_rotation(theta, epsilon, axis="z", ...)` does the same for a single qubit
+rotation. The most used options:
 
 | Option | Default | Meaning |
 | --- | --- | --- |
@@ -124,7 +123,7 @@ assert bloch_image(word_unitary(word)) == bloch_image(element)  # up to a global
 ```
 include/quicksynth/  the C++ headers, among them the bindings (the nanobind
                      module quicksynth._core)
-src/                 the C++ sources, in the same directories
+src/                 the C++ sources
 python/quicksynth/   the Python package: QuickSynth, the exact synthesis algorithm,
                      SynthesisConfig and the command line interface
 tests/               the C++ tests (tests/cpp/), the Python tests (tests/python/)
@@ -135,17 +134,10 @@ examples/            quickstart.py
 
 ## Documentation
 
-* [docs/python-api.md](docs/python-api.md): every option of `SynthesisConfig`
-  and how the search works.
-* [RESULTS.md](RESULTS.md): preliminary benchmark figures, ahead of the paper.
-* [docs/architecture.md](docs/architecture.md): how the library fits together:
-  one call mapped to its files, the layout, the boundary between Python and
-  C++, where each constant lives, what keeps results bit for bit, threads,
-  interrupts and errors.
-* [docs/development.md](docs/development.md): building, the wheels, the tests
-  and the rules of their fixtures.
-* [CONTRIBUTING.md](CONTRIBUTING.md): the development setup, the checks a
-  change must pass and the continuous integration.
+* [RESULTS.md](RESULTS.md): preliminary benchmark figures.
+* [docs/architecture.md](docs/architecture.md): presents the architecture of the repository.
+* [docs/development.md](docs/development.md): development guide.
+* [CONTRIBUTING.md](CONTRIBUTING.md): contribution guidelines.
 
 ## Citation
 
