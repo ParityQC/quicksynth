@@ -60,7 +60,7 @@ def _files() -> Files:
             quoted: list[str] = []
             system: list[str] = []
             if path.suffix in {".hpp", ".cpp"}:
-                for kind, name in _INCLUDE.findall(path.read_text()):
+                for kind, name in _INCLUDE.findall(path.read_text(encoding="utf-8")):
                     (quoted if kind == '"' else system).append(name)
             files[path.relative_to(base).as_posix()] = (quoted, system)
     return files
@@ -143,7 +143,7 @@ def test_only_the_bindings_include_python() -> None:
 
 def test_cmake_builds_every_source() -> None:
     """Sources are listed by path from src/."""
-    text = (ROOT / "CMakeLists.txt").read_text()
+    text = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
     code = "\n".join(line.split("#", 1)[0] for line in text.splitlines())
     listed = set(re.findall(r"[\w/-]+\.cpp", code))
     sources = {n.removeprefix("src/") for n in _files() if n.endswith(".cpp")}
@@ -176,7 +176,7 @@ def test_the_cpp_tests_mirror_the_steps() -> None:
 
 
 def test_every_cpp_test_is_built() -> None:
-    text = (CPP_TESTS / "CMakeLists.txt").read_text()
+    text = (CPP_TESTS / "CMakeLists.txt").read_text(encoding="utf-8")
     code = "\n".join(line.split("#", 1)[0] for line in text.splitlines())
     listed = set(re.findall(r"[\w/-]+\.cpp", code))
     sources = {p.relative_to(CPP_TESTS).as_posix() for p in CPP_TESTS.rglob("*.cpp")}
@@ -189,7 +189,9 @@ def test_each_cpp_test_case_is_its_own_ctest_filter() -> None:
     names = [
         name
         for path in CPP_TESTS.rglob("*.cpp")
-        for name in re.findall(r'TEST_CASE\("([^"]*)"', path.read_text())
+        for name in re.findall(
+            r'TEST_CASE\("([^"]*)"', path.read_text(encoding="utf-8")
+        )
     ]
     assert names
     assert [n for n in names if "," in n or "\\" in n] == []

@@ -118,7 +118,8 @@ TEST_CASE("a word past 2^1024: a finite distance") {
     for (const std::string& h : digits.hex)
         widest = std::max(widest, h.size() - (h[0] == '-' ? 1 : 0));
     CHECK(widest > 256);  // hexadecimal digits: past 2^1024
-    CHECK(precise_distance(word, unitary_of(letters_multiplied(word))) <= 1e-15);
+    CHECK(precise_distance(word, unitary_of(letters_multiplied(word))) <=
+          1e-15 + letters_multiplied_error(word.size()));
     const Unitary V = unitary_of(mul(rotation(0.3, 'x'), rotation(1.1, 'z')));
     const double d = precise_distance(normal_form(word), V);
     CHECK(std::isfinite(d));

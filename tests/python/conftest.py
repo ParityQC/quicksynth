@@ -28,7 +28,7 @@ FIXTURES = ROOT / "tests" / "fixtures"
 @cache
 def fixture_json(name: str) -> Any:
     """Parsed ``tests/fixtures/<name>``; cached, do not mutate."""
-    return json.loads((FIXTURES / name).read_text())
+    return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
 
 
 @pytest.fixture(scope="session")

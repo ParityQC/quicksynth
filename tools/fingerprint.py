@@ -251,7 +251,9 @@ def golden_cases() -> list[Case]:
     """QuickSynth runs of golden_synthesise.json (``"scan"``; ``"auto"`` below
     1e-3) under the recorded fixed stopping rule and, except test_golden.py's three
     slow runs, the model stopping rule."""
-    runs = json.loads((ROOT / "tests/fixtures/golden_synthesise.json").read_text())
+    runs = json.loads(
+        (ROOT / "tests/fixtures/golden_synthesise.json").read_text(encoding="utf-8")
+    )
     out = []
     for i, run in enumerate(runs["runs"]):
         config = run["config"]
@@ -299,12 +301,14 @@ def campaign_cases(records: Path) -> list[Case]:
     """Campaign C1 and its Clifford+T re-run C1t under the recorded fixed stopping rule:
     the ``CAMPAIGN_STAGE2`` calls and ``CAMPAIGN_PER_SETTING`` stage-1 calls per
     setting (24 settings)."""
-    targets = json.loads((records / "campaign/targets_2027.json").read_text())
+    targets = json.loads(
+        (records / "campaign/targets_2027.json").read_text(encoding="utf-8")
+    )
     rows = []
     for path in ("campaign/C1.jsonl", "campaign_post/C1t.jsonl"):
         rows += [
             (path, json.loads(line))
-            for line in (records / path).read_text().splitlines()
+            for line in (records / path).read_text(encoding="utf-8").splitlines()
         ]
     rng = np.random.default_rng(2026)
     settings_of: dict[tuple, list] = {}
@@ -351,7 +355,9 @@ CPU-s; all stage-2 rows are taken too."""
 def window_eval_cases(records: Path) -> list[Case]:
     """Window-evaluation model-rule rows: all 18 stage-2 rows and
     ``WINDOW_EVAL_PER_SETTING`` per setting (24 settings)."""
-    targets = json.loads((records / "window_eval/targets_2031.json").read_text())
+    targets = json.loads(
+        (records / "window_eval/targets_2031.json").read_text(encoding="utf-8")
+    )
     with gzip.open(records / "window_eval/rotations.jsonl.gz", "rt") as f:
         rows = [json.loads(line) for line in f]
     rows = [r for r in rows if r["window"] == "model"]
@@ -604,7 +610,7 @@ def record(args: argparse.Namespace) -> int:
 
 
 def load(path: Path = FIXTURE) -> dict[str, Any]:
-    return json.loads(path.read_text())
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def check(args: argparse.Namespace) -> int:

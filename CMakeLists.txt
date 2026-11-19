@@ -125,8 +125,13 @@ target_link_libraries(_core PRIVATE quicksynth_core)
 # module compiles the library's inline functions too and the linker keeps one
 # copy of each, so both targets need the same rounding. clang-cl takes the
 # option through /clang:, and its /W4 is clang's -Wall -Wextra.
+#
+# Microsoft's standard library packs its types to 8 bytes (_CRT_PACKING), so
+# the __int128 elements of a std::array may sit at an 8-byte boundary, where an
+# aligned 16-byte load through __int128& faults. -fmax-type-align=8 keeps
+# clang-cl from assuming more than 8 through a pointer or reference.
 if(MSVC)
-  set(QUICKSYNTH_CXX_OPTIONS /clang:-ffp-contract=off /W4)
+  set(QUICKSYNTH_CXX_OPTIONS /clang:-ffp-contract=off /clang:-fmax-type-align=8 /W4)
 else()
   set(QUICKSYNTH_CXX_OPTIONS -ffp-contract=off -Wall -Wextra)
 endif()
