@@ -13,7 +13,7 @@ Every answer is checked before it is returned. The same input always gives the
 same word.
 
 **[Preliminary benchmark results](RESULTS.md):** cost and compile time against
-cyclosynth and pygridsynth. To be published soon. 
+cyclosynth and pygridsynth. To be published soon.
 
 ## Installation
 
@@ -88,7 +88,7 @@ r.to_qasm()    # OpenQASM 3, sqrt(T) as p(pi/8)
 r.as_dict()
 ```
 
-`synthesise(target, epsilon, **overrides)` accepts any 2x2 single qubit unitary 
+`synthesise(target, epsilon, **overrides)` accepts any 2x2 single qubit
 unitary and output the synthesised approximate unitary within epsilon of the input.
 `synthesise_rotation(theta, epsilon, axis="z", ...)` does the same for a single qubit
 rotation. The most used options:
