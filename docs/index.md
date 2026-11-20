@@ -37,11 +37,12 @@ Installation, the command line and the Python API.
 Every function, class and option of the Python package.
 :::
 
-:::{grid-item-card} Preliminary results
-:link: ../RESULTS
+:::{grid-item-card} How it works
+:link: how-it-works/index
 :link-type: doc
 
-Cost and compile time against cyclosynth and pygridsynth.
+Interactive figures: how the search finds a circuit, and how it compares with
+cyclosynth and pygridsynth.
 :::
 
 :::{grid-item-card} Developer guide
@@ -56,6 +57,7 @@ How the library is built, tested and released.
 :hidden:
 
 Getting started <../README>
+how-it-works/index
 api
 Results <../RESULTS>
 developers

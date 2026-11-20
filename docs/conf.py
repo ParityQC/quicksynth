@@ -57,7 +57,7 @@ autodoc_default_options = {"members": True}
 html_theme = "pydata_sphinx_theme"
 html_title = "QuickSynth"
 html_static_path = ["_static"]
-html_css_files = ["brand.css"]
+html_css_files = ["brand.css", "showcase/showcase.css"]
 # GitHub Pages serves index.html at the root; it forwards to docs/index.html
 html_extra_path = ["_extra"]
 html_show_sourcelink = False

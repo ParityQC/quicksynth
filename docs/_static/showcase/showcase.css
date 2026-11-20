@@ -1,0 +1,348 @@
+/* Copyright (c) 2026 Parity Quantum Computing GmbH
+   SPDX-License-Identifier: MIT */
+
+/* Interactive figures of "How it works". Method colours are the paper's
+   (Okabe-Ito); the dark-mode steps are validated against the dark surface. */
+
+html[data-theme="light"] {
+  --qs-quicksynth: #0072b2;
+  --qs-cyclosynth: #d55e00;
+  --qs-pygridsynth: #009e73;
+  --qs-bound: #6b7480;
+  --qs-clifford-t: #7a828c;
+  /* price ramp by r = q/t: gate count, power, unfolding, catalysis */
+  --qs-price-0: #62155f;
+  --qs-price-1: #792d75;
+  --qs-price-2: #91438c;
+  --qs-price-3: #a959a3;
+  /* cost ramp of the sphere: cheap (0) to expensive (1) */
+  --qs-seq-0: #0b3d6b;
+  --qs-seq-1: #b7d3ee;
+}
+
+html[data-theme="dark"] {
+  --qs-quicksynth: #3a93d8;
+  --qs-cyclosynth: #e46e28;
+  --qs-pygridsynth: #1aa37b;
+  --qs-bound: #9ca4af;
+  --qs-clifford-t: #9ca4af;
+  --qs-price-0: #e2a8dc;
+  --qs-price-1: #cf8bc8;
+  --qs-price-2: #bb6db3;
+  --qs-price-3: #a6519e;
+  --qs-seq-0: #e3effb;
+  --qs-seq-1: #2c4a68;
+}
+
+.qs-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.qs-tile {
+  border: 1px solid var(--pst-color-border);
+  border-radius: 0.5rem;
+  padding: 1rem 1.1rem;
+  background: var(--pst-color-on-background);
+}
+
+.qs-tile-value {
+  font-size: 2rem;
+  font-weight: 650;
+  line-height: 1.1;
+  color: var(--pst-color-text-base);
+  font-variant-numeric: tabular-nums;
+}
+
+.qs-tile-label {
+  margin-top: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--pst-color-text-muted);
+}
+
+.qs-figure {
+  margin: 1rem 0 2rem;
+}
+
+.qs-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.qs-controls button {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--pst-color-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pst-color-text-base);
+  cursor: pointer;
+}
+
+.qs-controls button[aria-pressed="true"] {
+  border-color: var(--pst-color-primary);
+  background: var(--pst-color-primary);
+  color: var(--pst-color-background);
+}
+
+.qs-controls button:focus-visible {
+  outline: 2px solid var(--pst-color-primary);
+  outline-offset: 2px;
+}
+
+.qs-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1.1rem;
+  margin: 0.6rem 0 0.2rem;
+  font-size: 0.85rem;
+  color: var(--pst-color-text-muted);
+}
+
+.qs-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.qs-chart {
+  position: relative;
+  width: 100%;
+}
+
+/* columns set by numbers.js from the chart's own width */
+.qs-pair {
+  display: grid;
+  gap: 1rem;
+}
+
+.qs-chart svg {
+  display: block;
+  overflow: visible;
+  font-size: 12px;
+}
+
+.qs-chart .axis text {
+  fill: var(--pst-color-text-muted);
+}
+
+.qs-chart .axis path,
+.qs-chart .axis line {
+  stroke: var(--pst-color-border);
+}
+
+.qs-chart .grid line {
+  stroke: var(--pst-color-border);
+  stroke-opacity: 0.45;
+}
+
+.qs-chart .axis-title,
+.qs-chart .note {
+  fill: var(--pst-color-text-muted);
+}
+
+.qs-chart .label {
+  fill: var(--pst-color-text-base);
+}
+
+.qs-chart .hit {
+  fill: transparent;
+  cursor: default;
+}
+
+.qs-chart .hit:focus {
+  outline: none;
+}
+
+.qs-chart .hit:focus-visible + .ring,
+.qs-chart .ring.active {
+  stroke: var(--pst-color-text-base);
+  stroke-width: 1.5;
+}
+
+.qs-tooltip {
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+  min-width: 9rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--pst-color-border);
+  border-radius: 0.4rem;
+  background: var(--pst-color-background);
+  color: var(--pst-color-text-base);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.qs-tooltip .qs-tip-head {
+  color: var(--pst-color-text-muted);
+  margin-bottom: 0.2rem;
+}
+
+.qs-tooltip .qs-tip-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.qs-tooltip .qs-tip-row b {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.qs-tooltip .qs-tip-key {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0;
+  border-top: 2px solid;
+}
+
+.qs-caption {
+  font-size: 0.85rem;
+  color: var(--pst-color-text-muted);
+  margin-top: 0.3rem;
+}
+
+.qs-table table {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* "How QuickSynth finds a circuit" */
+
+.qs-sliders {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.6rem 1.5rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--pst-color-text-muted);
+}
+
+.qs-sliders label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 11rem;
+}
+
+.qs-sliders output {
+  color: var(--pst-color-text-base);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.qs-sliders input[type="range"] {
+  accent-color: var(--pst-color-primary);
+}
+
+.qs-sliders .qs-controls {
+  margin-bottom: 0;
+}
+
+.qs-spheres {
+  display: grid;
+  gap: 1rem;
+}
+
+.qs-sphere-pane canvas {
+  display: block;
+  margin: 0 auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.qs-sphere-pane canvas:active {
+  cursor: grabbing;
+}
+
+.qs-sphere-pane canvas:focus-visible {
+  outline: 2px solid var(--pst-color-primary);
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+
+.qs-readout {
+  text-align: center;
+  font-size: 0.85rem;
+  margin: 0.3rem 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.qs-narration {
+  min-height: 4.2em;
+  margin: 0.4rem 0 0.2rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--pst-color-primary);
+  background: var(--pst-color-on-background);
+  font-size: 0.9rem;
+}
+
+.qs-controls button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+#qs-scan .qs-caption {
+  overflow-wrap: anywhere;
+}
+
+.qs-chart .halo {
+  paint-order: stroke;
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.qs-ramp {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--pst-color-text-muted);
+  margin: 0 0 0.4rem;
+}
+
+.qs-ramp-step {
+  display: inline-block;
+  width: 1rem;
+  height: 0.7rem;
+}
+
+.qs-ramp-step:first-of-type {
+  border-radius: 3px 0 0 3px;
+}
+
+.qs-ramp-step:last-of-type {
+  border-radius: 0 3px 3px 0;
+}
+
+.qs-word {
+  font-size: 0.85rem;
+  margin: 0.4rem 0 0;
+}
+
+.qs-gates {
+  overflow-wrap: anywhere;
+  letter-spacing: 0.04em;
+}
+
+.qs-gates .qs-gate-c {
+  color: var(--pst-color-text-muted);
+}
+
+.qs-gates .qs-gate-t {
+  color: var(--pst-color-text-base);
+  font-weight: 700;
+}
+
+.qs-gates .qs-gate-q {
+  color: var(--qs-quicksynth);
+  font-weight: 700;
+}
