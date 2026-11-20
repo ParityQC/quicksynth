@@ -65,6 +65,7 @@ html_theme_options = {
     "logo": {
         "image_light": "_static/logo-light.svg",
         "image_dark": "_static/logo-dark.svg",
+        "text": "QuickSynth",
         "alt_text": "QuickSynth",
     },
     "icon_links": [
