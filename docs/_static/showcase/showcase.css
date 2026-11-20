@@ -322,3 +322,27 @@ html[data-theme="dark"] {
 .qs-ramp-step:last-of-type {
   border-radius: 0 3px 3px 0;
 }
+
+.qs-word {
+  font-size: 0.85rem;
+  margin: 0.4rem 0 0;
+}
+
+.qs-gates {
+  overflow-wrap: anywhere;
+  letter-spacing: 0.04em;
+}
+
+.qs-gates .qs-gate-c {
+  color: var(--pst-color-text-muted);
+}
+
+.qs-gates .qs-gate-t {
+  color: var(--pst-color-text-base);
+  font-weight: 700;
+}
+
+.qs-gates .qs-gate-q {
+  color: var(--qs-quicksynth);
+  font-weight: 700;
+}

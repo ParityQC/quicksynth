@@ -69,6 +69,94 @@ deeper. Step through a search for one random rotation.
   <p class="qs-caption"></p>
   <details class="qs-table"><summary>Show the numbers</summary><div></div></details>
 </div>
+```
+
+On Clifford+T the bound is tight, and the search usually ends with a
+certificate: no cheaper circuit exists. On Clifford+√T the bound is looser, and
+each scale holds about 256 times as many points as the last, so the search stops
+when the next scale would cost more time than it is likely to save.
+
+## Finding the points
+
+At one scale, the circuits within ε of the target are points of a lattice: the
+integer coefficients of the circuit's first column, 8 of them on Clifford+T and 16
+on Clifford+√T. They lie in a thin search region, which QuickSynth encloses in an
+ellipsoid. Its walk (the Fincke–Pohst method) fixes one coordinate at a time: each
+choice of the last coordinate leaves an interval for the next, so it only ever
+visits points inside the ellipsoid. Every point it finds is then checked exactly:
+is it a unitary within ε of the target, and what does its circuit cost?
+
+How much work the walk does depends on the basis it describes the lattice in. A
+skewed basis makes it try many rows that hold no point; the basis reduced by the
+LLL algorithm, in the ellipsoid's own metric, lines the rows up with the region.
+The figure shows the same idea in two dimensions.
+
+```{raw} html
+<div class="qs-figure" id="qs-walk">
+  <div class="qs-controls" role="group" aria-label="Basis">
+    <button type="button" data-basis="skewed" aria-pressed="true">Skewed basis</button>
+    <button type="button" data-basis="reduced" aria-pressed="false">LLL-reduced basis</button>
+  </div>
+  <div class="qs-sliders">
+    <label>scale <output data-out="scale"></output>
+      <input type="range" data-input="scale" min="0" max="4" step="1" value="2"></label>
+    <div class="qs-controls">
+      <button type="button" data-action="walk">Walk</button>
+      <button type="button" data-action="finish">Show the result</button>
+    </div>
+  </div>
+  <p class="qs-narration" aria-live="polite"></p>
+  <div class="qs-legend"></div>
+  <div class="qs-chart"></div>
+  <p class="qs-caption"></p>
+</div>
+```
+
+## Reaching deeper: the split
+
+Every circuit of scale *K* is a product *P R* of a prefix *P* of a small scale *k*
+and a remainder *R* of scale *K* − *k*. The split takes the cheapest prefixes and,
+for each, searches only for the remainder, near *P*<sup>−1</sup> times the target:
+a far smaller search. It can miss a circuit that does not start with one of the
+chosen prefixes, so it adds to the scan rather than replacing it. Below about
+ε = 10<sup>-5</sup> it reaches scales the scan cannot afford.
+
+```{raw} html
+<div class="qs-figure" id="qs-split">
+  <div class="qs-controls" role="group" aria-label="Precision">
+    <button type="button" data-epsilon="1e-07" aria-pressed="true">ε = 10<sup>-7</sup></button>
+    <button type="button" data-epsilon="1e-08" aria-pressed="false">ε = 10<sup>-8</sup></button>
+  </div>
+  <div class="qs-legend"></div>
+  <div class="qs-chart"></div>
+  <p class="qs-caption"></p>
+  <details class="qs-table"><summary>Show the numbers</summary><div></div></details>
+</div>
+```
+
+## The price decides the winner
+
+The cost of a circuit with *n*<sub>T</sub> `T` gates and *n*<sub>√T</sub> `√T`
+gates is *t* *n*<sub>T</sub> + *q* *n*<sub>√T</sub>, and the prices *t* and *q*
+depend on how the magic states are made. Each dot is the answer QuickSynth gives
+for the rotation of the scale-by-scale figure, at ε = 10<sup>-4</sup>, at one
+price. The line holds
+every circuit of the winner's cost at the chosen price; nothing found lies below
+it. Make `√T` dearer and the line tilts, and the winner moves towards fewer `√T`
+gates.
+
+```{raw} html
+<div class="qs-figure" id="qs-price">
+  <div class="qs-sliders">
+    <label>price of √T against T, r = q/t: <output data-out="price"></output>
+      <input type="range" data-input="price" min="0" max="6" step="1" value="5"></label>
+  </div>
+  <div class="qs-legend"></div>
+  <div class="qs-chart"></div>
+  <p class="qs-word"></p>
+  <p class="qs-caption"></p>
+  <details class="qs-table"><summary>Show the numbers</summary><div></div></details>
+</div>
 <noscript><p>The interactive figures need JavaScript.</p></noscript>
 <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"
         integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i"
@@ -76,8 +164,3 @@ deeper. Step through a search for one random rotation.
 <script src="../../_static/showcase/common.js"></script>
 <script src="../../_static/showcase/mechanism.js"></script>
 ```
-
-On Clifford+T the bound is tight, and the search usually ends with a
-certificate: no cheaper circuit exists. On Clifford+√T the bound is looser, and
-each scale holds about 256 times as many points as the last, so the search stops
-when the next scale would cost more time than it is likely to save.
