@@ -104,6 +104,17 @@ development build in `build/`.
 `uv build` also builds the sdist, which holds the sources, the tests and
 `tools/`.
 
+### Documentation site
+
+`make docs` builds the site into `build/docs` (`build/docs/index.html`) with
+Sphinx, MyST and the PyData theme, from `uv sync --group docs`. Its source
+directory is the repository root, so the Markdown files keep linking to each
+other by their repository paths; `docs/conf.py` lists the pages, `docs/index.md`
+is the landing page and `docs/api.md` the API reference, which reads the
+docstrings with the C++ core mocked. Warnings fail the build.
+`.github/workflows/docs.yml` builds it on every pull request and publishes it
+to GitHub Pages from `main`.
+
 ## Tests
 
 ```bash

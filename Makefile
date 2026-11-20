@@ -4,7 +4,7 @@
 .DEFAULT_GOAL := help
 UV ?= uv
 
-.PHONY: help sync test test-fast test-cpp test-sanitizers lint format typecheck check demo clean cpp wheel devcontainer
+.PHONY: help sync test test-fast test-cpp test-sanitizers lint format typecheck check demo docs clean cpp wheel devcontainer
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -59,6 +59,11 @@ wheel: ## Build sdist and wheel into dist/
 
 demo: ## Synthesise a few targets (examples/quickstart.py)
 	$(UV) run python examples/quickstart.py
+
+# The site's source directory is the repository root (docs/conf.py); warnings
+# fail the build, as in CI.
+docs: ## Build the documentation site into build/docs
+	$(UV) run --group docs sphinx-build -W --keep-going -c docs . build/docs
 
 devcontainer: ## Create .devcontainer/local/ from the templates (keeps existing files)
 	mkdir -p .devcontainer/local
