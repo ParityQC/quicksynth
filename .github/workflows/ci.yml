@@ -22,7 +22,7 @@ env:
   # with its own, newer uv; uv lock --check accepts a lock file of another
   # "revision" with the same "version" (the format, at the top of uv.lock).
   # Should a Dependabot pull request fail the check, raise this, and the uv of
-  # wheels.yml and .devcontainer/Dockerfile, in that pull request.
+  # wheels.yml, docs.yml and .devcontainer/Dockerfile, in that pull request.
   UV_VERSION: "0.12.17"
   # Each job syncs the environment once, explicitly; uv run must not sync it
   # again, which would install the package where a job leaves it out.

@@ -1,0 +1,14 @@
+/* Copyright (c) 2026 Parity Quantum Computing GmbH
+   SPDX-License-Identifier: MIT */
+
+/* Placeholder colours until ParityQC's brand colours arrive: replace the
+   primary and secondary values below, in both modes. */
+html[data-theme="light"] {
+  --pst-color-primary: #3b5bdb;
+  --pst-color-secondary: #0b7285;
+}
+
+html[data-theme="dark"] {
+  --pst-color-primary: #8ea2ff;
+  --pst-color-secondary: #66d9e8;
+}

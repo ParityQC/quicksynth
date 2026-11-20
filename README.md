@@ -128,6 +128,8 @@ examples/            quickstart.py
 
 ## Documentation
 
+The documentation site: <https://parityqc.github.io/quicksynth/>.
+
 * [RESULTS.md](RESULTS.md): preliminary benchmark figures.
 * [docs/architecture.md](docs/architecture.md): presents the architecture of the repository.
 * [docs/development.md](docs/development.md): development guide.
