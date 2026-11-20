@@ -58,7 +58,9 @@ def su2(m: np.ndarray) -> np.ndarray:
 
 def quaternion(m: np.ndarray) -> np.ndarray:
     """[[a, -b*], [b, a*]] in SU(2) as (Re a, Im a, Re b, Im b)."""
-    return np.stack([m[..., 0, 0].real, m[..., 0, 0].imag, m[..., 1, 0].real, m[..., 1, 0].imag], -1)
+    return np.stack(
+        [m[..., 0, 0].real, m[..., 0, 0].imag, m[..., 1, 0].real, m[..., 1, 0].imag], -1
+    )
 
 
 def cliffords() -> list[tuple[np.ndarray, str]]:
@@ -86,11 +88,14 @@ def cliffords() -> list[tuple[np.ndarray, str]]:
 
 CLIFFORDS = cliffords()
 CLIFFORD_MATRICES = np.array([m for m, _ in CLIFFORDS])
-FUNCTIONAL = np.array([0.7071, 0.3141, 0.5772, 0.2718])  # generic: picks one coset member
+FUNCTIONAL = np.array(
+    [0.7071, 0.3141, 0.5772, 0.2718]
+)  # generic: picks one coset member
 
 
 def coset_keys(ms: np.ndarray) -> np.ndarray:
-    """A key per coset m C (C Clifford, up to phase): its member maximising |q . FUNCTIONAL|."""
+    """A key per coset m C (C Clifford, up to phase): its member maximising
+    |q . FUNCTIONAL|."""
     q = quaternion(np.einsum("nij,cjk->ncik", ms, CLIFFORD_MATRICES))
     f = q @ FUNCTIONAL
     q = q * np.sign(f)[..., None]
@@ -98,8 +103,11 @@ def coset_keys(ms: np.ndarray) -> np.ndarray:
     return np.round(rep * 1e6).astype(np.int64)
 
 
-def circuits(t_cost: int, q_cost: int, sqrt_t: bool) -> list[tuple[np.ndarray, str, int]]:
-    """Every circuit up to MAX_COST modulo a final Clifford, cheapest first: (matrix, word, cost)."""
+def circuits(
+    t_cost: int, q_cost: int, sqrt_t: bool
+) -> list[tuple[np.ndarray, str, int]]:
+    """Every circuit up to MAX_COST modulo a final Clifford, cheapest first, as
+    (matrix, word, cost)."""
     gates = [(su2(T), "T", t_cost)] + ([(su2(Q), "Q", q_cost)] if sqrt_t else [])
     seen = {tuple(coset_keys(su2(np.eye(2))[None])[0])}
     layers: dict[int, list[tuple[np.ndarray, str]]] = {0: [(su2(np.eye(2)), "")]}
@@ -118,12 +126,17 @@ def circuits(t_cost: int, q_cost: int, sqrt_t: bool) -> list[tuple[np.ndarray, s
                 for i, k in enumerate(coset_keys(prod)):
                     if tuple(k) not in seen:
                         seen.add(tuple(k))
-                        layers.setdefault(cost + price, []).append((prod[i], layer[i][1] + cw + letter))
+                        layers.setdefault(cost + price, []).append(
+                            (prod[i], layer[i][1] + cw + letter)
+                        )
     return out
 
 
-def sphere_points(gate_set: str, t_cost: int, q_cost: int) -> tuple[bytes, dict[str, Any]]:
-    """The states the circuits prepare from the stabiliser states, one per state at its least cost."""
+def sphere_points(
+    gate_set: str, t_cost: int, q_cost: int
+) -> tuple[bytes, dict[str, Any]]:
+    """The states the circuits prepare from the stabiliser states, each once, at
+    its least cost."""
     sqrt_t = gate_set == "clifford_sqrt_t"
     found = circuits(t_cost, q_cost, sqrt_t)
     n_q = []
@@ -131,27 +144,44 @@ def sphere_points(gate_set: str, t_cost: int, q_cost: int) -> tuple[bytes, dict[
         price, _, nq = qs.price(qs.word_unitary(word), t_cost, q_cost, not sqrt_t)
         assert price == cost, (word, cost, price)
         n_q.append(nq)
-    stabiliser = np.array([[1, 0], [0, 1], [1, 1], [1, -1], [1, 1j], [1, -1j]]) / np.array(
-        [1, 1, *[np.sqrt(2)] * 4]
-    )[:, None]
+    stabiliser = (
+        np.array([[1, 0], [0, 1], [1, 1], [1, -1], [1, 1j], [1, -1j]])
+        / np.array([1, 1, *[np.sqrt(2)] * 4])[:, None]
+    )
     psi = np.einsum("nij,sj->nsi", np.array([m for m, _, _ in found]), stabiliser)
     a, b = psi[..., 0], psi[..., 1]
-    xyz = np.stack([2 * (a.conj() * b).real, 2 * (a.conj() * b).imag, abs(a) ** 2 - abs(b) ** 2], -1).reshape(-1, 3)
+    xyz = np.stack(
+        [2 * (a.conj() * b).real, 2 * (a.conj() * b).imag, abs(a) ** 2 - abs(b) ** 2],
+        -1,
+    ).reshape(-1, 3)
     cost = np.repeat([c for _, _, c in found], 6)
     nq = np.repeat(n_q, 6)
     order = np.argsort(cost, kind="stable")
-    _, first = np.unique(np.round(xyz[order] * 1e5).astype(np.int64), axis=0, return_index=True)
+    _, first = np.unique(
+        np.round(xyz[order] * 1e5).astype(np.int64), axis=0, return_index=True
+    )
     keep = order[first]
     keep = keep[np.argsort(cost[keep], kind="stable")]
-    rec = np.zeros(len(keep), dtype=[("x", "<i2"), ("y", "<i2"), ("z", "<i2"), ("cost", "u1"), ("nq", "u1")])
+    rec = np.zeros(
+        len(keep),
+        dtype=[("x", "<i2"), ("y", "<i2"), ("z", "<i2"), ("cost", "u1"), ("nq", "u1")],
+    )
     v = xyz[keep] / np.linalg.norm(xyz[keep], axis=1, keepdims=True)
     v = np.round(v * SCALE).astype(np.int16)
-    rec["x"], rec["y"], rec["z"], rec["cost"], rec["nq"] = v[:, 0], v[:, 1], v[:, 2], cost[keep], nq[keep]
+    rec["x"], rec["y"], rec["z"], rec["cost"], rec["nq"] = (
+        v[:, 0],
+        v[:, 1],
+        v[:, 2],
+        cost[keep],
+        nq[keep],
+    )
     per_cost = np.bincount([c for _, _, c in found], minlength=MAX_COST + 1)
     meta = {
         "gate_set": gate_set,
         "price": [t_cost, q_cost],
-        "label": "Clifford+T, T-count" if not sqrt_t else f"Clifford+√T, catalysis ({t_cost},{q_cost})",
+        "label": "Clifford+T, T-count"
+        if not sqrt_t
+        else f"Clifford+√T, catalysis ({t_cost},{q_cost})",
         "count": len(rec),
         "max_cost": MAX_COST,
         "circuits": per_cost.tolist(),
@@ -162,25 +192,39 @@ def sphere_points(gate_set: str, t_cost: int, q_cost: int) -> tuple[bytes, dict[
 def scale_bound(gate_set: str, price: list[int], k: int) -> float:
     """No circuit of scale k or deeper costs less (search_scales/scale_bound.hpp)."""
     t, q = price
-    return t * (2 * k - 3) if gate_set == "clifford_t" else min(t / 2, q / 3) * (4 * k - 7)
+    return (
+        t * (2 * k - 3) if gate_set == "clifford_t" else min(t / 2, q / 3) * (4 * k - 7)
+    )
 
 
 def walks(result: qs.SynthesisResult) -> list[dict[str, Any]]:
-    """The first stage's walks in order, the two determinant classes of a scale merged."""
+    """The first stage's walks in order; a scale's determinant classes merged."""
     out: list[dict[str, Any]] = []
     for e in result.log:
         if e["stage"] != 1:
             continue
         key = (e["search"], e["scale"], e.get("prefix_scale"))
         if not out or out[-1]["key"] != key:
-            out.append({"key": key, "search": e["search"], "scale": e["scale"], "prefix_scale": e.get("prefix_scale"),
-                        "points": 0, "estimated": 0.0, "seconds": 0.0, "best": None})
+            out.append(
+                {
+                    "key": key,
+                    "search": e["search"],
+                    "scale": e["scale"],
+                    "prefix_scale": e.get("prefix_scale"),
+                    "points": 0,
+                    "estimated": 0.0,
+                    "seconds": 0.0,
+                    "best": None,
+                }
+            )
         w = out[-1]
         w["points"] += e["points"]
         w["estimated"] += e["estimated_points"]
         w["seconds"] += e["seconds"]
         if e["best_cost"] is not None:
-            w["best"] = e["best_cost"] if w["best"] is None else min(w["best"], e["best_cost"])
+            w["best"] = (
+                e["best_cost"] if w["best"] is None else min(w["best"], e["best_cost"])
+            )
     for w in out:
         del w["key"]
     return out
@@ -197,16 +241,36 @@ def scan_runs() -> list[dict[str, Any]]:
             last, prev = sc[-1], sc[-2]
             growth = last["estimated"] / prev["estimated"]
             price = [r.t_cost, r.q_cost]
-            nxt = {"scale": last["scale"] + 1, "points": round(last["points"] * growth),
-                   "seconds": last["seconds"] * growth}
-            runs.append({
-                "gate_set": name, "epsilon": eps, "price": price, "cost": r.cost, "n_t": r.n_t, "n_q": r.n_q,
-                "word": r.word, "certified": r.certified, "seconds": round(r.seconds, 4),
-                "scales": [{"scale": w["scale"], "points": w["points"], "estimated": round(w["estimated"], 3),
-                            "seconds": round(w["seconds"], 6), "best": w["best"],
-                            "bound": scale_bound(name, price, w["scale"])} for w in sc],
-                "next": nxt | {"bound": scale_bound(name, price, nxt["scale"])},
-            })  # fmt: skip
+            nxt = {
+                "scale": last["scale"] + 1,
+                "points": round(last["points"] * growth),
+                "seconds": last["seconds"] * growth,
+            }
+            runs.append(
+                {
+                    "gate_set": name,
+                    "epsilon": eps,
+                    "price": price,
+                    "cost": r.cost,
+                    "n_t": r.n_t,
+                    "n_q": r.n_q,
+                    "word": r.word,
+                    "certified": r.certified,
+                    "seconds": round(r.seconds, 4),
+                    "scales": [
+                        {
+                            "scale": w["scale"],
+                            "points": w["points"],
+                            "estimated": round(w["estimated"], 3),
+                            "seconds": round(w["seconds"], 6),
+                            "best": w["best"],
+                            "bound": scale_bound(name, price, w["scale"]),
+                        }
+                        for w in sc
+                    ],
+                    "next": nxt | {"bound": scale_bound(name, price, nxt["scale"])},
+                }
+            )
     return runs
 
 
@@ -222,10 +286,22 @@ def split_runs() -> list[dict[str, Any]]:
         for w in ws:
             v = {k: w[k] for k in ("search", "scale", "prefix_scale", "points", "best")}
             if w["search"] == "split":  # what the scan alone would walk at this scale
-                v["scan_points"] = round(scan[-1]["points"] * growth ** (w["scale"] - scan[-1]["scale"]))
+                v["scan_points"] = round(
+                    scan[-1]["points"] * growth ** (w["scale"] - scan[-1]["scale"])
+                )
             out.append(v)
-        runs.append({"epsilon": eps, "cost": r.cost, "n_t": r.n_t, "n_q": r.n_q, "word": r.word,
-                     "source": r.search["source"], "price": [r.t_cost, r.q_cost], "walks": out})  # fmt: skip
+        runs.append(
+            {
+                "epsilon": eps,
+                "cost": r.cost,
+                "n_t": r.n_t,
+                "n_q": r.n_q,
+                "word": r.word,
+                "source": r.search["source"],
+                "price": [r.t_cost, r.q_cost],
+                "walks": out,
+            }
+        )
     return runs
 
 
@@ -234,21 +310,41 @@ def price_rows() -> list[dict[str, Any]]:
     rows = []
     for t, q in PRICES:
         r = qs.synthesise(target, PRICE_EPSILON, t_cost=t, q_cost=q)
-        rows.append({"price": [t, q], "cost": r.cost, "n_t": r.n_t, "n_q": r.n_q, "word": r.word})
+        rows.append(
+            {
+                "price": [t, q],
+                "cost": r.cost,
+                "n_t": r.n_t,
+                "n_q": r.n_q,
+                "word": r.word,
+            }
+        )
     r = qs.synthesise(target, PRICE_EPSILON, gateset="clifford_t")
-    rows.append({"price": [1, None], "cost": r.cost, "n_t": r.n_t, "n_q": 0, "word": r.word})
-    for a in rows[:-1]:  # the figure shows each answer as the cheapest of them all at its price
+    rows.append(
+        {"price": [1, None], "cost": r.cost, "n_t": r.n_t, "n_q": 0, "word": r.word}
+    )
+    for a in rows[
+        :-1
+    ]:  # the figure shows each answer as the cheapest of them all at its price
         t, q = a["price"]
         assert all(b["n_t"] * t + b["n_q"] * q >= a["cost"] for b in rows), a
     return rows
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--out", type=Path, default=ROOT / "docs" / "_static" / "showcase")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--out", type=Path, default=ROOT / "docs" / "_static" / "showcase"
+    )
     out = parser.parse_args().out
-    commit = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"],
-                            capture_output=True, text=True, check=True).stdout.strip()  # fmt: skip
+    commit = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
     blobs, sets, offset = [], [], 0
     for gate_set, t, q in [("clifford_t", 1, 0), ("clifford_sqrt_t", 1, 3)]:
         blob, meta = sphere_points(gate_set, t, q)
@@ -257,9 +353,10 @@ def main() -> None:
         blobs.append(blob)
     (out / "points.bin").write_bytes(b"".join(blobs))
     data = {
-        "source": f"tools/showcase_data.py at quicksynth {commit}: Haar-random targets (scipy unitary_group, "
-        f"seed {SCAN_SEED}; seed {SPLIT_SEED} for the split); scan and split on whole scales "
-        "(fine_levels=False), fixed stopping rule, one thread; prices with the default settings",
+        "source": f"tools/showcase_data.py at quicksynth {commit}: Haar-random "
+        f"targets (scipy unitary_group, seed {SCAN_SEED}; seed {SPLIT_SEED} for the "
+        "split); scan and split on whole scales (fine_levels=False), fixed stopping "
+        "rule, one thread; prices with the default settings",
         "sphere": {"scale": SCALE, "record_bytes": 8, "sets": sets},
         "scan": scan_runs(),
         "split": {"seed": SPLIT_SEED, "runs": split_runs()},
