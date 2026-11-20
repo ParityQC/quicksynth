@@ -115,7 +115,9 @@ docstrings with the C++ core mocked. Warnings fail the build.
 `docs/how-it-works/` holds the interactive pages; their scripts and data are in
 `docs/_static/showcase/`. `results.json` holds the aggregates plotted in the
 figures of `RESULTS.md`, exported from the paper's figure script with them:
-replace both together.
+replace both together. `python tools/showcase_data.py` rewrites the data of
+"How QuickSynth finds a circuit" (`mechanism.json`, `points.bin`) from the
+library; it times the scan, so run it on an idle machine.
 `.github/workflows/docs.yml` builds it on every pull request and publishes it
 to GitHub Pages from `main`.
 
