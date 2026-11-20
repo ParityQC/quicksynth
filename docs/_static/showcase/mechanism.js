@@ -1,7 +1,7 @@
 /* Copyright (c) 2026 Parity Quantum Computing GmbH
    SPDX-License-Identifier: MIT */
 
-/* "How QuickSynth finds a circuit": the Bloch-sphere picture of the circuits
+/* Algorithm (docs/algorithm.md): the Bloch-sphere picture of the circuits
    up to a cost (points.bin) and the scan, scale by scale (mechanism.json).
    Both files are exported from the library itself. */
 

@@ -1,8 +1,8 @@
 /* Copyright (c) 2026 Parity Quantum Computing GmbH
    SPDX-License-Identifier: MIT */
 
-/* "QuickSynth in numbers": headline tiles and the three interactive figures
-   of docs/how-it-works/numbers.md, drawn with D3 from results.json, the
+/* Benchmark: headline tiles and the three interactive figures of
+   docs/benchmark.md, drawn with D3 from results.json, the
    aggregates plotted in RESULTS.md's figures. */
 
 (function () {

@@ -1,14 +1,14 @@
 <!-- Copyright (c) 2026 Parity Quantum Computing GmbH
      SPDX-License-Identifier: MIT -->
 
-# QuickSynth in numbers
+# Benchmark
 
 ```{admonition} Preliminary results
 :class: note
 
 These numbers come from the benchmark campaign behind the paper, which is
 coming soon, and may still change. They are the values plotted in the
-[preliminary results](../../RESULTS.md). Every method runs on one thread per
+[preliminary results](../RESULTS.md). Every method runs on one thread per
 rotation.
 ```
 
@@ -87,10 +87,10 @@ gate-count price.
   <details class="qs-table"><summary>Show the numbers</summary><div></div></details>
 </div>
 <noscript><p>The interactive figures need JavaScript; the
-<a href="../../RESULTS.html">preliminary results</a> show the same data.</p></noscript>
+<a href="../RESULTS.html">preliminary results</a> show the same data.</p></noscript>
 <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"
         integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i"
         crossorigin="anonymous"></script>
-<script src="../../_static/showcase/common.js"></script>
-<script src="../../_static/showcase/numbers.js"></script>
+<script src="../_static/showcase/common.js"></script>
+<script src="../_static/showcase/numbers.js"></script>
 ```

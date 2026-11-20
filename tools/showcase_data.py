@@ -9,7 +9,7 @@
 #
 #  ===----------------------------------------------------------------------===//
 
-"""Writes the data of the interactive figures in docs/how-it-works/mechanism.md.
+"""Writes the data of the interactive figures in docs/algorithm.md.
 
     python tools/showcase_data.py [--out docs/_static/showcase]
 
@@ -20,7 +20,7 @@ circuit counts per cost, the scan of one Haar-random target scale by scale, a
 search the split improves, and one target at seven prices.
 
 The scan's times are measured: run it on an otherwise idle machine, one
-thread. The data of docs/how-it-works/numbers.md (``results.json``) comes from
+thread. The data of docs/benchmark.md (``results.json``) comes from
 the paper's figure script instead.
 """
 

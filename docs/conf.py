@@ -58,6 +58,7 @@ html_theme = "pydata_sphinx_theme"
 html_title = "QuickSynth"
 html_static_path = ["_static"]
 html_css_files = ["brand.css", "showcase/showcase.css"]
+
 # GitHub Pages serves index.html at the root; it forwards to docs/index.html
 html_extra_path = ["_extra"]
 html_show_sourcelink = False
@@ -81,3 +82,13 @@ html_theme_options = {
     "footer_end": [],
 }
 html_context = {"default_mode": "auto"}
+
+
+def _orphan(app, docname, source):
+    # RESULTS.md: reached from the README's links, outside the navigation
+    if docname == "RESULTS":
+        source[0] = "---\norphan: true\n---\n" + source[0]
+
+
+def setup(app):
+    app.connect("source-read", _orphan)
