@@ -19,7 +19,8 @@
 namespace quicksynth {
 
 // Search that found the answer; rotation: the z-rotation path (stage 0).
-enum class Source { scan, split, rotation };
+// clifford_t: the Clifford+T scan beat a Clifford+sqrt(T) search (synthesise.hpp)
+enum class Source { scan, split, rotation, clifford_t };
 
 // Counts of one walk of the z-rotation path (synthesise_rotation/).
 struct RotationWalk {

@@ -262,7 +262,9 @@ class SynthesisResult:
     """Answering-stage summary; not compared or serialised. Keys: ``scales``,
     ``first_hit_scale``, ``last_full_scale``, ``lower_bound`` (from fully walked
     scales), ``estimated_points``, ``scan_cost``, ``scan_certified``,
-    ``split_ran``, ``source`` (``"scan"``, ``"split"`` or ``"rotation"``)."""
+    ``split_ran``, ``source`` (``"scan"``, ``"split"``, ``"rotation"`` or
+    ``"clifford_t"``: on Clifford+sqrt(T), a cheaper pure-T word from the
+    Clifford+T scan)."""
 
     @property
     def gates(self) -> list[str]:

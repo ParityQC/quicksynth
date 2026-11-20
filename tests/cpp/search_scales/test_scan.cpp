@@ -144,6 +144,26 @@ TEST_CASE("a larger rate stops sooner and never answers cheaper") {
     }
 }
 
+TEST_CASE("an incumbent stops the scan where the scale bound reaches it") {
+    const Unitary& V = calibration_targets()[0];
+    const Price price = Price::clifford_t(1);
+    const ScaleScan::Result free = ScaleScan(1e-3, GateSet::clifford_t(), price, 1, {}).run(V);
+    REQUIRE(free.best.has_value());
+    REQUIRE(!free.log.empty());
+    const int first = free.log.front().scale;
+    const int64_t best = free.best->cost.value;
+    for (const int64_t incumbent : {int64_t{0}, int64_t{2 * first - 3}, best, best + 100}) {
+        INFO("incumbent ", incumbent);
+        ScaleScan::Settings s;
+        s.incumbent = incumbent;
+        ScaleScan scan(1e-3, GateSet::clifford_t(), price, 1, s);
+        const ScaleScan::Result r = scan.run(V);
+        for (const SearchLog& e : r.log) CHECK(scan.scale_lower_bound(e.scale) < incumbent);
+        if (incumbent <= scan.scale_lower_bound(first)) CHECK(r.log.empty());
+        if (incumbent > best) CHECK(r.log.size() == free.log.size());
+    }
+}
+
 TEST_CASE("the certified scan matches the certified optima at the power price" *
           doctest::test_suite("slow")) {
     // CertSynth optima at (2, 3), 1e-3
