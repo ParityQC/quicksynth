@@ -362,7 +362,7 @@ def main() -> None:
         "split": {"seed": SPLIT_SEED, "runs": split_runs()},
         "prices": {"seed": SCAN_SEED, "epsilon": PRICE_EPSILON, "rows": price_rows()},
     }
-    (out / "mechanism.json").write_text(json.dumps(data, separators=(",", ":")))
+    (out / "mechanism.json").write_text(json.dumps(data, separators=(",", ":")) + "\n")
     print(f"wrote {out / 'points.bin'} ({offset} points) and {out / 'mechanism.json'}")
 
 
