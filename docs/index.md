@@ -20,7 +20,7 @@ r = qs.synthesise_rotation(np.pi / 8, 1e-3)   # R_z(pi/8) within 1e-3
 r.word, r.cost, r.n_t, r.n_q
 ```
 
-::::{grid} 1 1 2 2
+::::{grid} 1 1 2 3
 :gutter: 3
 
 :::{grid-item-card} Getting started
@@ -30,19 +30,25 @@ r.word, r.cost, r.n_t, r.n_q
 Installation, the command line and the Python API.
 :::
 
+:::{grid-item-card} Algorithm
+:link: algorithm
+:link-type: doc
+
+How the search finds a circuit, in interactive figures.
+:::
+
+:::{grid-item-card} Benchmark
+:link: benchmark
+:link-type: doc
+
+Cost and compile time against cyclosynth and pygridsynth.
+:::
+
 :::{grid-item-card} API reference
 :link: api
 :link-type: doc
 
 Every function, class and option of the Python package.
-:::
-
-:::{grid-item-card} How it works
-:link: how-it-works/index
-:link-type: doc
-
-Interactive figures: how the search finds a circuit, and how it compares with
-cyclosynth and pygridsynth.
 :::
 
 :::{grid-item-card} Developer guide
@@ -57,8 +63,8 @@ How the library is built, tested and released.
 :hidden:
 
 Getting started <../README>
-how-it-works/index
+Algorithm <algorithm>
+benchmark
 api
-Results <../RESULTS>
 developers
 ```
