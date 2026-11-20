@@ -15,6 +15,9 @@ html[data-theme="light"] {
   --qs-price-1: #792d75;
   --qs-price-2: #91438c;
   --qs-price-3: #a959a3;
+  /* cost ramp of the sphere: cheap (0) to expensive (1) */
+  --qs-seq-0: #0b3d6b;
+  --qs-seq-1: #b7d3ee;
 }
 
 html[data-theme="dark"] {
@@ -27,6 +30,8 @@ html[data-theme="dark"] {
   --qs-price-1: #cf8bc8;
   --qs-price-2: #bb6db3;
   --qs-price-3: #a6519e;
+  --qs-seq-0: #e3effb;
+  --qs-seq-1: #2c4a68;
 }
 
 .qs-tiles {
@@ -207,4 +212,113 @@ html[data-theme="dark"] {
 .qs-table table {
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* "How QuickSynth finds a circuit" */
+
+.qs-sliders {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.6rem 1.5rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--pst-color-text-muted);
+}
+
+.qs-sliders label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 11rem;
+}
+
+.qs-sliders output {
+  color: var(--pst-color-text-base);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.qs-sliders input[type="range"] {
+  accent-color: var(--pst-color-primary);
+}
+
+.qs-sliders .qs-controls {
+  margin-bottom: 0;
+}
+
+.qs-spheres {
+  display: grid;
+  gap: 1rem;
+}
+
+.qs-sphere-pane canvas {
+  display: block;
+  margin: 0 auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.qs-sphere-pane canvas:active {
+  cursor: grabbing;
+}
+
+.qs-sphere-pane canvas:focus-visible {
+  outline: 2px solid var(--pst-color-primary);
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+
+.qs-readout {
+  text-align: center;
+  font-size: 0.85rem;
+  margin: 0.3rem 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.qs-narration {
+  min-height: 4.2em;
+  margin: 0.4rem 0 0.2rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--pst-color-primary);
+  background: var(--pst-color-on-background);
+  font-size: 0.9rem;
+}
+
+.qs-controls button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+#qs-scan .qs-caption {
+  overflow-wrap: anywhere;
+}
+
+.qs-chart .halo {
+  paint-order: stroke;
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.qs-ramp {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--pst-color-text-muted);
+  margin: 0 0 0.4rem;
+}
+
+.qs-ramp-step {
+  display: inline-block;
+  width: 1rem;
+  height: 0.7rem;
+}
+
+.qs-ramp-step:first-of-type {
+  border-radius: 3px 0 0 3px;
+}
+
+.qs-ramp-step:last-of-type {
+  border-radius: 0 3px 3px 0;
 }

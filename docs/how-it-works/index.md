@@ -10,5 +10,6 @@ interactive figures; hover over a mark to read its value.
 ```{toctree}
 :maxdepth: 1
 
+mechanism
 numbers
 ```
