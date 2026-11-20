@@ -297,8 +297,13 @@ def test_an_interrupted_synthesis_leaves_nothing_that_changes_an_answer() -> Non
         V = np.array(t["re"]) + 1j * np.array(t["im"])
         recorded = ("method", "deterministic")
         config = {k: v for k, v in frozen["config"].items() if k not in recorded}
-        # the frozen run was recorded under the fixed stopping rule
-        config = {**config, "stopping_rule": "fixed", "rotation_path": False}
+        # the frozen run was recorded on whole scales under the fixed stopping rule
+        config = {
+            **config,
+            "stopping_rule": "fixed",
+            "fine_levels": False,
+            "rotation_path": False,
+        }
         run = fields(qs.synthesise(V, frozen["epsilon"], **config))
         print(json.dumps({"stopped": stopped, "again": again, "frozen": run}))
     """
