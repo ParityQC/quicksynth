@@ -22,6 +22,14 @@
 // verbose a line for each walk of QuickSynth's scan and for each stage, and
 // none while a cost ball is built.
 //
+// On Clifford+sqrt(T) a Clifford+T search then looks for a pure-T word
+// cheaper than the answer: stage 0 and the stages, with the answer's cost as
+// the incumbent, so each stops where its scale bound reaches that cost.
+// A pure-T word lies far deeper in the sqrt(T) scales than a sqrt(T) word of
+// its cost, so the sqrt(T) search stops before it; at a high sqrt(T) price
+// it can be the cheaper. Its walks are not logged; under verbose one line
+// reports a cheaper word.
+//
 // Stage 0 (Settings::rotation_path) comes first: a target Clifford-equivalent
 // to a z-rotation is searched by the z-rotation path (synthesise_rotation/),
 // on Clifford+T certified T-optimal when exact, on Clifford+sqrt(T) up to its
@@ -54,7 +62,7 @@ struct Synthesised {
     // Clifford+T: scan at its scale bound, or stage 0 at its bound on an exact
     // Clifford-equivalent z-rotation
     bool certified = false;
-    int stages = 1;  // stages run; 0: stage 0 answered
+    int stages = 1;  // stages run; 0: stage 0 answered (of the Clifford+T search's, if it answered)
     // (stage, walk) of every walk, for time-model calibration
     std::vector<std::pair<int, SearchLog>> log;
     std::optional<SearchSummary> search;  // answering stage
@@ -122,6 +130,12 @@ class QuickSynth {
     int rotation_solvable() const;
 
   private:
+    // The stages and stage 0, without the Clifford+T comparison.
+    Synthesised search(const Unitary& U, double epsilon) const;
+    // Clifford+T: a word below `cost` from stage 0 and the stages, each with
+    // `cost` as its incumbent; a stage that reaches it ends the search.
+    std::optional<Synthesised> cheaper_than(const Unitary& U, double epsilon, int64_t cost,
+                                            std::optional<double> deadline) const;
     std::optional<Synthesised> rotation_stage(const Unitary& U, double epsilon,
                                               std::optional<double> deadline,
                                               std::vector<std::pair<int, SearchLog>>& log,

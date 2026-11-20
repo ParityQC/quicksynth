@@ -91,6 +91,10 @@ ScaleScan::Result ScaleScan::run(const Unitary& V, const Progress& progress) {
             result.certified = true;
             break;
         }
+        if (settings_.incumbent && bound(K, model) >= static_cast<double>(*settings_.incumbent)) {
+            result.incumbent_reached = true;
+            break;
+        }
         const double est = enumerator_.estimate_points(K, sub);
         if (settings_.rate && result.best &&
             !(model ? model_worth_it(*stopping, K, result)

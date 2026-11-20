@@ -17,6 +17,10 @@
 // the split starts past the scan's last level, and with level_search and a rate
 // LevelSearch (level_search.hpp) runs both searches instead.
 //
+// With an incumbent (ScaleScan::Settings::incumbent) the scan and the split
+// stop where the scale bound reaches it, and a scan stopped there leaves out
+// the split.
+//
 // Model stopping rule (stopping_rule.hpp): the split runs whenever the scan did not certify,
 // from the first scale not walked in full, choosing prefix scales from 2 to
 // max(3, prefix scale) by value. Below split_below its first composite scale is

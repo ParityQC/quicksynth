@@ -82,6 +82,9 @@ synthesise(U, eps)                                       synthesise.cpp
                                                          exact_synthesis/normal_form.cpp
             -> normal form, distance <= eps - 5e-16:     exact_synthesis/normal_form.cpp,
                accept, else the next stage               data_structures/distance.cpp
+synthesise, on Clifford+sqrt(T): the Clifford+T       synthesise.cpp
+     search (stage 0, the stages) below the answer's
+     cost; a cheaper pure-T word replaces it
 ```
 
 - **Stage 0.** U = C1 D C2 up to phase, with Cliffords C1, C2 and D diagonal,
@@ -176,6 +179,16 @@ synthesise(U, eps)                                       synthesise.cpp
 - **Stages.** When a stage returns nothing, or its answer fails the check, the
   next stage runs with larger budgets and deeper prefixes (`stages()` in
   policy.cpp). Most calls answer in the first stage.
+- **Clifford+T comparison.** A pure-T word of T-count n has scale about n/2,
+  far deeper than a sqrt(T) word of its cost, so the sqrt(T) search stops
+  before it. On Clifford+sqrt(T) the Clifford+T search therefore runs after the
+  answer, stage 0 and then the stages, with the answer's cost as an incumbent:
+  the scan and the split stop where t (2K - 3) reaches that cost, a scan
+  stopped there leaves out the split and ends the search, and a cheaper pure-T
+  word that passes the check replaces the answer (`source` `"clifford_t"`,
+  `stages` of the Clifford+T search). At most prices the bound reaches the cost
+  on the scan's first scales, and no prefix ball is built; at a high sqrt(T)
+  price, such as (1, 6), the pure-T word wins.
 
 ## Layout
 
