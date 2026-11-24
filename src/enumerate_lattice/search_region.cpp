@@ -28,57 +28,79 @@ constexpr double kHalfAlongFloor = 2.4e-15;
 // How far |y_p|^2 of a leaf may be from 1 at any place.
 constexpr double kUnitTolerance = 1e-6;
 
-// The pad of the cylinder and the dome against the rounding of the walk's coordinates at the
-// identity place, along the target and across it: 64 ulps of 1. A solution can lie on their
-// boundary; without the pad, the walk dropped planted solutions within 4 to 16 ulps of it.
+// The ellipsoids below enclose the cap at the identity place: the points y of the unit 4-sphere
+// with t = y . v >= s = sqrt(1 - eps^2), where t is y's coordinate along the target direction v
+// and r = |y - t v| its distance across. Each is given by its semi-axes along v and across and
+// its centre's coordinate t (CapEllipsoid).
+
+// Allowance for the rounding of the walk's coordinates at the identity place, along v: 64 ulps
+// of 1. The cylinder and the dome touch the cap, so a solution can lie on their boundary; without
+// this pad the walk dropped planted solutions within 4 to 16 ulps of it.
 constexpr double kCapPad = 64 * std::numeric_limits<double>::epsilon();
 
-enum class CapShape { box, cylinder, dome };
+// The rounding allowance across v: kCapPad, and at least 1e-9 eps.
+double across_pad(double epsilon) { return std::max(1e-9 * epsilon, kCapPad); }
 
-// The ellipsoid around the cap {t >= s, t^2 + r^2 = 1}, t = y . v along the target and r across,
-// with the cylinder and the dome padded by kCapPad along and across:
-// - box: the Loewner ellipsoid of the box [s, 1] x [-eps, eps]^3, 2 h along (h = half_along)
-//   and 2 eps across; a solution is at most 1/2 inside it, so it needs no pad;
-// - cylinder: of the cylinder [s, 1] x {r <= eps}, 2 h along and 2 eps / sqrt(3) across, 5.2 times
-//   smaller;
-// - dome: of the paraboloid r^2 / 2 <= 1 - t <= U = 1 - s, which holds the cap since
-//   1 - sqrt(1 - r^2) >= r^2 / 2: centred 0.8 U below the tip v, 0.8 U along and
-//   (4 / sqrt(15)) sqrt(2 U) across, 9.1 times smaller than the box. It touches the cap at the tip
-//   and along the rim (t = s, r = eps).
-SearchRegion::CapEllipsoid cap_ellipsoid(CapShape shape, double epsilon, double s,
-                                         double half_along) {
-    const double box_centre = (1.0 + s) / 2;
-    const double pad = kCapPad, across_pad = std::max(1e-9 * epsilon, kCapPad);
-    switch (shape) {
-        case CapShape::box: return {2.0 * half_along, 2.0 * epsilon, box_centre};
-        case CapShape::cylinder:
-            return {2.0 * (half_along + pad), 2.0 / std::sqrt(3.0) * (epsilon + across_pad),
-                    box_centre};
-        case CapShape::dome: {
-            // U without cancellation, padded at both ends: the tip at 1 - t = -pad
-            const double U = epsilon * epsilon / (1.0 + s) + 2.0 * pad;
-            return {0.8 * U,
-                    4.0 / std::sqrt(15.0) * std::sqrt(2.0 * U) * (1.0 + across_pad / epsilon),
-                    1.0 + pad - 0.8 * U};
-        }
-    }
-    return {};
+// The box's ellipsoid: the Loewner ellipsoid of the box [s, 1] x [-eps, eps]^3 around the cap,
+// centred mid-box, with semi-axes 2 h along v and 2 eps across, where h = half_along is the box's
+// half-width along v (floored at kHalfAlongFloor). A solution is at most 1/2 inside it, so it
+// needs no pad.
+CapEllipsoid box_ellipsoid(double epsilon, double s, double half_along) {
+    return {2.0 * half_along, 2.0 * epsilon, (1.0 + s) / 2};
 }
 
-double volume(const SearchRegion::CapEllipsoid& cap) {
-    return cap.along * cap.across * cap.across * cap.across;
+// The cylinder's ellipsoid: the Loewner ellipsoid of the cylinder {s <= t <= 1, r <= eps} around
+// the cap, centred mid-cylinder, with semi-axes 2 h along v and 2 eps / sqrt(3) across;
+// 3^(3/2) = 5.2 times less volume than the box's. A solution can lie on its boundary, so it is
+// padded: h by kCapPad, eps by across_pad().
+CapEllipsoid cylinder_ellipsoid(double epsilon, double s, double half_along) {
+    return {2.0 * (half_along + kCapPad), 2.0 / std::sqrt(3.0) * (epsilon + across_pad(epsilon)),
+            (1.0 + s) / 2};
 }
 
-// The shape of the smallest padded ellipsoid: the dome down to eps ~ 1e-6, the cylinder near
-// 3e-7, and the box below, where the pad would outgrow the cap's thickness.
-CapShape cap_shape(double epsilon, double s, double half_along) {
-    CapShape best = CapShape::box;
-    double best_volume = volume(cap_ellipsoid(best, epsilon, s, half_along));
-    for (CapShape shape : {CapShape::cylinder, CapShape::dome}) {
-        const double v = volume(cap_ellipsoid(shape, epsilon, s, half_along));
-        if (v < best_volume) best = shape, best_volume = v;
-    }
+// The dome's ellipsoid. At depth u = 1 - t below the tip v, the cap lies in the paraboloid
+// {r^2 / 2 <= u <= U}, U = 1 - s, since 1 - sqrt(1 - r^2) >= r^2 / 2. The paraboloid's Loewner
+// ellipsoid is centred at depth 0.8 U, with semi-axes 0.8 U along v and (4 / sqrt(15)) sqrt(2 U)
+// across, 9.1 times less volume than the box's. It touches the cap at the tip and along the rim
+// (t = s, r = eps), so it is padded: the paraboloid starts kCapPad above the tip and is 2 kCapPad
+// thicker, and the semi-axis across grows by the factor 1 + across_pad() / eps.
+CapEllipsoid dome_ellipsoid(double epsilon, double s) {
+    // U = 1 - s without cancellation, padded at both ends
+    const double U = epsilon * epsilon / (1.0 + s) + 2.0 * kCapPad;
+    return {0.8 * U,
+            4.0 / std::sqrt(15.0) * std::sqrt(2.0 * U) * (1.0 + across_pad(epsilon) / epsilon),
+            1.0 + kCapPad - 0.8 * U};
+}
+
+// Volume of a cap ellipsoid, in units of the unit 4-ball's: one semi-axis along v, three across.
+double volume(const CapEllipsoid& cap) { return cap.along * cap.across * cap.across * cap.across; }
+
+// The cap's ellipsoid the walk uses: the smallest of the box's, the cylinder's and the dome's,
+// the box's on ties. That is the dome's down to eps ~ 1e-6, the cylinder's near 3e-7 and the box's
+// below, where the pads outgrow the cap's thickness.
+CapEllipsoid smallest_cap_ellipsoid(double epsilon, double s, double half_along) {
+    CapEllipsoid best = box_ellipsoid(epsilon, s, half_along);
+    for (const CapEllipsoid& cap :
+         {cylinder_ellipsoid(epsilon, s, half_along), dome_ellipsoid(epsilon, s)})
+        if (volume(cap) < volume(best)) best = cap;
     return best;
+}
+
+// The form of a cap ellipsoid around the target direction v, |S (y - y0)|^2 <= 1:
+// S = I / across + (1 / along - 1 / across) v v^t and y0 = centre v.
+struct CapForm {
+    double S[4][4];
+    double y0[4];
+};
+
+CapForm cap_form(const CapEllipsoid& cap, const Vec4& v) {
+    const double across = 1.0 / cap.across;
+    const double along = 1.0 / cap.along - across;
+    CapForm out{};
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j) out.S[i][j] = (along * v[i]) * v[j] + (i == j ? across : 0.0);
+    for (int i = 0; i < 4; ++i) out.y0[i] = cap.centre * v[i];
+    return out;
 }
 
 // pi^(dim/2) / (dim/2)!, the volume of the unit ball in dim dimensions.
@@ -169,8 +191,8 @@ SearchRegion::SearchRegion(double epsilon, GateSet gateset)
     // 2 * half_along_ along the target, 2 * epsilon across it,
     // and 2 * epsilon in the other two directions
     cap_volume_ = (2 * half_along_) * (2 * epsilon) * (2 * epsilon) * (2 * epsilon);
-    // the ellipsoid the walk encloses the cap in; the estimates stay the box's
-    cap_ = cap_ellipsoid(cap_shape(epsilon, s_, half_along_), epsilon, s_, half_along_);
+    // the ellipsoid the walk encloses the cap in; the estimates count the box's
+    cap_ = smallest_cap_ellipsoid(epsilon, s_, half_along_);
     // 5% of the cap thickness, at least 1e-13: the leaf dot product rounds by
     // <= ~1.6e-14, so no element within epsilon is dropped
     s_min_ = s_ - std::max(0.05 * (1.0 - s_), 1e-13);
@@ -208,20 +230,12 @@ LoewnerEllipsoid SearchRegion::ellipsoid(const Vec4& target, int denominator_exp
                                          const std::vector<double>& embedding) const {
     const int n = gateset_.dim();
     const std::vector<double> E_inv = embedding_inverse(gateset_, denominator_exponent);
-    // S_cap is chosen such that the enclosed area is the cap's ellipsoid (cap_ellipsoid()):
-    // || S_cap (y- y0) ||^2 <= 1. The right side is 1 so S_cap has to contain its semi-axes:
-    // cap_.across perpendicular to v (the target vector) and cap_.along along v:
-    // S_cap = I/across + (1/along - 1/across) v v^t of the region
-    // and its centre y0 = cap_.centre v with the target vector v.
-    const double across = 1.0 / cap_.across;
-    const double along = 1.0 / cap_.along - across;
-    // set the elements of S_cap
-    double S[4][4];
-    for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j)
-            S[i][j] = (along * target[i]) * target[j] + (i == j ? across : 0.0);
-    const double c = cap_.centre;
-    const double y0[4] = {c * target[0], c * target[1], c * target[2], c * target[3]};
+    // S_cap is chosen such that the enclosed area is the cap's ellipsoid
+    // (smallest_cap_ellipsoid()):
+    // || S_cap (y- y0) ||^2 <= 1, with its centre y0 on the target vector v (cap_form()).
+    const CapForm form = cap_form(cap_, target);
+    const auto& S = form.S;
+    const auto& y0 = form.y0;
     // A = S E and c0 = E^-1 y0, the sums in a fixed order: S is the identity for all places but the
     // the first place (first four rows)
     std::vector<double> A = embedding;
