@@ -10,9 +10,10 @@
 // The search region for one precision.
 //
 // A unitary (u1, u2) / sqrt2^K is a lattice point in R^dim, in the cap u . v >= sqrt(1 - eps^2)
-// at the identity place and on the unit 4-sphere at the others. The cap is boxed (eps^2/2
-// along v, eps across), the product region enclosed in its Loewner ellipsoid. LLL inputs use a
-// fixed rounding order, so they are reproducible.
+// at the identity place and on the unit 4-sphere at the others. The cap is enclosed in an
+// ellipsoid, the smallest of those around a box, a cylinder and the cap's dome
+// (search_region.cpp), the product region in its Loewner ellipsoid. LLL inputs use a fixed
+// rounding order, so they are reproducible.
 #pragma once
 
 #include "quicksynth/enumerate_lattice/walk.hpp"
@@ -74,12 +75,19 @@ class SearchRegion {
     // tolerance. A view of E, which must outlive it.
     WalkLattice walk_lattice(const std::vector<double>& E) const;
 
+    // The cap's ellipsoid: its semi-axes along the target v and across it, and its centre's dot
+    // product with v.
+    struct CapEllipsoid {
+        double along = 0.0, across = 0.0, centre = 0.0;
+    };
+
   private:
     double epsilon_;
     GateSet gateset_;
     double s_;           // sqrt(1 - eps^2)
     double half_along_;  // box half-width along the target
-    double cap_volume_;  // box volume prod(2 h)
+    double cap_volume_;  // box volume prod(2 h), which the estimates count in
+    CapEllipsoid cap_;   // the walk's
     double s_min_;
 };
 
