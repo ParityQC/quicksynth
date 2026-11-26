@@ -394,7 +394,10 @@ uv run python tools/fingerprint.py record -n 6              # needs the benchmar
   levels became the default on Clifford+√T, the 192 cases whose search changed
   were recorded again in place, among them 32 with another word (cost 49 lower
   in all, two dearer), and the 17 `whole-*` cases were added with the answers
-  recorded before. The full check takes about ten minutes of one CPU.
+  recorded before. When the cap's set-up moved to double-double below
+  ε ≈ 3.5e-7, the 91 cases at 1e-7 to 1e-13 whose per-walk point counts
+  changed were recorded again in place, 3 of them with another word of the
+  same cost. The full check takes about ten minutes of one CPU.
 - `test_fingerprint.py` runs each case as a test: the 206 marked `fast`, those
   that walk the fewest leaves at stage 1 and the `whole-*` cases of those, in
   every `pytest` run, and so in CI (a few seconds); the others under the
