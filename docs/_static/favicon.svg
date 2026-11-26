@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -0.6 39.8 39.8">
+  <!-- the three diamonds of the ParityQC logo -->
+  <g fill="#e61430">
+    <polygon points="19.07,5.65 27.30,13.88 19.07,22.11 10.84,13.88"/>
+    <polygon points="29.56,16.49 37.79,24.72 29.56,32.95 21.33,24.72"/>
+    <polygon points="8.23,16.49 16.46,24.72 8.23,32.95 0,24.72"/>
+  </g>
+</svg>

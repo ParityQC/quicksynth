@@ -48,7 +48,8 @@
       .attr("d", symbolPath(m.symbol, size))
       .attr("fill", m.fill ? c : color("--pst-color-background"))
       .attr("stroke", m.fill ? color("--pst-color-background") : c)
-      .attr("stroke-width", m.fill ? 1 : 1.8);
+      .attr("stroke-width", m.fill ? 1 : 1.8)
+      .classed("qs-lead", method.startsWith("quicksynth"));
   }
 
   /** Legend entries: [{method, line}] with a marker, a line or both. */
@@ -325,13 +326,13 @@
           .attr("stroke", color("--pst-color-text-muted"))
           .attr("stroke-width", 1)
           .attr("marker-end", "url(#qs-arrow)");
-        svg
-          .append("text")
-          .attr("class", "label")
-          .attr("x", (x0 + x1) / 2)
-          .attr("y", y(p.cost) - 5)
-          .attr("text-anchor", "middle")
-          .text(`×${(to / p.hours).toFixed(to / p.hours < 10 ? 1 : 0)}`);
+        const label = `×${(to / p.hours).toFixed(to / p.hours < 10 ? 1 : 0)}`;
+        const w = 16 + 7.5 * label.length;
+        // on the arrow when it is long enough, above it otherwise
+        const py = x1 - x0 > w + 16 ? y(p.cost) : y(p.cost) - 15;
+        const pill = svg.append("g").attr("class", "qs-pill").attr("transform", `translate(${(x0 + x1) / 2},${py})`);
+        pill.append("rect").attr("x", -w / 2).attr("y", -10).attr("width", w).attr("height", 20).attr("rx", 10);
+        pill.append("text").attr("text-anchor", "middle").attr("dy", "0.35em").text(label);
       }
 
       // cyclosynth's other deadlines: filled on one thread, hollow on several
@@ -571,6 +572,7 @@
         const c = color(METHODS[n].color);
         const pts = s.series[n];
         const dash = METHODS[n].dash || null;
+        const lead = n.startsWith("quicksynth");
         if (n !== "pygridsynth") {
           if (pts[0].se !== undefined && !ct && n !== "quicksynth_fast") {
             svg
@@ -590,7 +592,8 @@
             .append("path")
             .attr("fill", "none")
             .attr("stroke", c)
-            .attr("stroke-width", 2)
+            .attr("stroke-width", lead ? 2.6 : 2)
+            .classed("qs-lead", lead)
             .attr("stroke-dasharray", ct && n === "cyclosynth" ? "6 4" : dash)
             .attr(
               "d",
@@ -608,7 +611,8 @@
           .append("path")
           .attr("fill", "none")
           .attr("stroke", c)
-          .attr("stroke-width", 2)
+          .attr("stroke-width", lead ? 2.6 : 2)
+          .classed("qs-lead", lead)
           .attr("stroke-dasharray", dash)
           .attr(
             "d",
