@@ -244,7 +244,11 @@ returns, such as a new stopping rule or a fix that changes a certificate, may
 re-record the runs it changes, with a recorder of its own, stating in the commit
 which runs changed and why. QuickSynth's own LLL (`lll.cpp`), which replaced
 FLINT's, reduces some bases differently: 126 runs were re-recorded for their
-point counts and 9 for another element of the same cost.
+point counts and 9 for another element of the same cost. The tighter ellipsoid
+around the cap (`search_region.cpp`), whose walks visit a median of 8.7 times
+fewer leaves, re-recorded 776 runs for their point counts (704 of the scan, all
+72 of the split) and 107 for another element of the same cost (78 of the scan, 1
+of the split, 28 combined).
 
 **Frozen fixtures.** These are `golden_words.json`, `golden_balls.json`,
 `golden_prefixes.json` and `golden_synthesise.json`. They hold the outputs
@@ -265,7 +269,9 @@ answer with the transposed word (run 107 on macOS x86-64), which is admitted
 there. They are the reference the core was ported against, and they are not
 re-recorded, except runs 13, 53 and 57 of `golden_synthesise`: QuickSynth's
 own LLL answers them with another word of the same cost, and run 13's distance
-is the new word's, computed at 60 digits.
+is the new word's, computed at 60 digits; and runs 9, 13, 53 and 55, which the
+tighter cap ellipsoid answers with another word of the same cost, their
+distances the new words', at 60 digits.
 They were recorded with that Python implementation, which is not in this
 repository:
 
@@ -282,7 +288,7 @@ repository:
   near a Clifford, and Cliffords, magic gates and short words on both gate sets
   down to 1e-8.
 - The file keeps the paper's 73 QuickSynth runs in their order, byte for byte
-  except runs 13, 53 and 57; `meta.paper_v1_runs` gives the index of each.
+  except runs 9, 13, 53, 55 and 57; `meta.paper_v1_runs` gives the index of each.
 
 `test_golden.py` replays a recorded `method="scan"`, and `"auto"` below 1e-3,
 which picked the scan, through QuickSynth under the fixed stopping rule, on

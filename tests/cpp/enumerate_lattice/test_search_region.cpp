@@ -8,7 +8,8 @@
 // ===----------------------------------------------------------------------===//
 
 // Finer levels: the sublattice delta^sub of a scale, checked against level 0
-// with an independent division by delta = 1 - zeta.
+// with an independent division by delta = 1 - zeta. The cap's ellipsoid: it
+// holds the cap and is never larger than the box's.
 
 #include "fixtures.hpp"
 
@@ -18,6 +19,8 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
+#include <cmath>
 #include <numeric>
 #include <set>
 #include <tuple>
@@ -127,6 +130,32 @@ TEST_CASE("levels count L per scale and step through the sublattices") {
     const SearchRegion region(1e-5, GateSet::sqrt_t());
     CHECK(region.estimate_points(5, 2) == doctest::Approx(region.estimate_points(5) / 16));
     CHECK(level_at(region.first_level(1), 1).K == region.first_scale());
+}
+
+TEST_CASE("the cap's ellipsoid holds the cap and is never larger than the box's") {
+    // (eps, its semi-axis across over eps): the dome's down to 1e-6, the cylinder's at 3e-7, the
+    // box's below
+    for (const auto& [eps, across] : std::vector<std::pair<double, double>>{{1e-2, 1.033},
+                                                                            {1e-3, 1.033},
+                                                                            {1e-5, 1.033},
+                                                                            {1e-6, 1.062},
+                                                                            {3e-7, 1.155},
+                                                                            {1e-7, 2.0},
+                                                                            {1e-9, 2.0}}) {
+        INFO("eps ", eps);
+        const SearchRegion region(eps, GateSet::sqrt_t());
+        const CapEllipsoid& cap = region.cap_ellipsoid();
+        CHECK(cap.across / eps == doctest::Approx(across).epsilon(1e-3));
+        // points of the cap: t = sqrt(1 - r^2) for r from 0 (the tip) to eps (the rim)
+        for (const double f : {0.0, 0.25, 0.5, 0.75, 0.999, 1.0}) {
+            const double r = f * eps, t = std::sqrt(1.0 - r * r);
+            const double along = (t - cap.centre) / cap.along, across_v = r / cap.across;
+            CHECK(along * along + across_v * across_v <= 1.0);
+        }
+        // the box's volume prod(2 h), h floored as in the region
+        const double s = std::sqrt(1.0 - eps * eps), h = std::max((1.0 - s) / 2, 2.4e-15);
+        CHECK(cap.along * std::pow(cap.across, 3) <= (2 * h) * std::pow(2 * eps, 3));
+    }
 }
 
 }  // namespace quicksynth::test

@@ -195,7 +195,7 @@ def test_verbose_lines_go_through_sys_stdout(capsys) -> None:
     sq.synthesise(U, 1e-3, verbose=True, fine_levels=False)
     lines = capsys.readouterr().out.splitlines()
     assert lines[4].startswith(
-        "    K=8 parity 0: 712 points, "
+        "    K=8 parity 0: 78 points, "
         "hits [16, 16, 20, 24, 24, 24, 28, 29]...  est 5408  ["
     )
 

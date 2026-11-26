@@ -10,9 +10,10 @@
 // The search region for one precision.
 //
 // A unitary (u1, u2) / sqrt2^K is a lattice point in R^dim, in the cap u . v >= sqrt(1 - eps^2)
-// at the identity place and on the unit 4-sphere at the others. The cap is boxed (eps^2/2
-// along v, eps across), the product region enclosed in its Loewner ellipsoid. LLL inputs use a
-// fixed rounding order, so they are reproducible.
+// at the identity place and on the unit 4-sphere at the others. The walk encloses the cap in
+// the smallest of three ellipsoids (CapEllipsoid), those around a box, a cylinder and the cap's
+// dome, and the product region in its Loewner ellipsoid. The point estimates count the box's
+// ellipsoid. LLL inputs use a fixed rounding order, so they are reproducible.
 #pragma once
 
 #include "quicksynth/enumerate_lattice/walk.hpp"
@@ -33,6 +34,13 @@ struct LoewnerEllipsoid {
     // lengths there
     std::vector<double> to_ball;
     std::vector<double> centre;  // n, E^-1 y0
+};
+
+// An ellipsoid that encloses the cap at the identity place, symmetric about the target direction
+// v: its semi-axis along v, its semi-axis in the three directions across v, and the coordinate
+// along v of its centre, which lies on v.
+struct CapEllipsoid {
+    double along = 0.0, across = 0.0, centre = 0.0;
 };
 
 class SearchRegion {
@@ -74,12 +82,17 @@ class SearchRegion {
     // tolerance. A view of E, which must outlive it.
     WalkLattice walk_lattice(const std::vector<double>& E) const;
 
+    // The ellipsoid the walk encloses the cap in: the smallest of those around a box, a cylinder
+    // and the cap's dome (search_region.cpp), padded where a solution can lie on its boundary.
+    const CapEllipsoid& cap_ellipsoid() const { return cap_; }
+
   private:
     double epsilon_;
     GateSet gateset_;
     double s_;           // sqrt(1 - eps^2)
     double half_along_;  // box half-width along the target
-    double cap_volume_;  // box volume prod(2 h)
+    double cap_volume_;  // the box's volume prod(2 h), which the estimates count in
+    CapEllipsoid cap_;   // the walk's ellipsoid around the cap
     double s_min_;
 };
 
