@@ -117,10 +117,25 @@ void check_stage_0(const Synthesised& a, const Unitary& U, double eps, const Gat
     check_answer(a, U, eps, gateset);
 }
 
+// A Clifford+sqrt(T) stage-0 answer at its recorded cost, or a pure-T word of
+// the Clifford+T search below it (source clifford_t), which the recording
+// predates.
+void check_recorded_sqrt_t(const Synthesised& a, const Unitary& U, double eps, int64_t recorded) {
+    REQUIRE(a.search.has_value());
+    if (a.search->source != Source::clifford_t) {
+        check_stage_0(a, U, eps, GateSet::sqrt_t());
+        CHECK(a.cost.value == recorded);
+        return;
+    }
+    CHECK(a.stages == 0);
+    check_answer(a, U, eps, GateSet::sqrt_t());
+    CHECK(a.cost.value < recorded);
+}
+
 // Golden Clifford+sqrt(T) rows of ids below `ids` at `epsilons` (all if empty):
-// default and fast at their recorded costs, the default within two of the
-// reference on each angle and below it in the mean of each epsilon, fast
-// within half a gate of it.
+// default and fast at their recorded costs, or below them by a pure-T word,
+// the default within two of the reference on each angle and below it in the
+// mean of each epsilon, fast within half a gate of it.
 void check_sqrt_t_rotations(int ids, const std::vector<double>& epsilons) {
     const QuickSynth synth = synthesiser(GateSet::sqrt_t());
     const QuickSynth fast = synthesiser(GateSet::sqrt_t(), true);
@@ -134,11 +149,9 @@ void check_sqrt_t_rotations(int ids, const std::vector<double>& epsilons) {
         const Unitary U = z_rotation(row["theta"]);
         const Synthesised a = synth.synthesise(U, eps);
         const Synthesised f = fast.synthesise(U, eps);
-        check_stage_0(a, U, eps, GateSet::sqrt_t());
-        check_stage_0(f, U, eps, GateSet::sqrt_t());
+        check_recorded_sqrt_t(a, U, eps, row["cost"]);
+        check_recorded_sqrt_t(f, U, eps, row["fast_cost"]);
         const int64_t reference = row["reference"];
-        CHECK(a.cost.value == row["cost"].get<int64_t>());
-        CHECK(f.cost.value == row["fast_cost"].get<int64_t>());
         CHECK(a.cost.value <= reference + 2);
         auto& s = sums[eps];
         s[0] += 1;
