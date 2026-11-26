@@ -120,6 +120,9 @@ struct SublatticeBasis {
     // Its entries k / 2^sub are exact doubles while |k| < 2^53 (next_sublattice_basis()
     // checks).
     std::vector<double> from_power_basis;
+    // B^-1 less from_power_basis, for the double-double centre (finish_setup()): exact while
+    // |k| < 2^106; empty where from_power_basis is exact.
+    std::vector<double> from_power_basis_low;
 };
 
 // Set-up of one direction, built at its reference scale. Valid at every scale
@@ -136,6 +139,7 @@ struct Setup {
     std::shared_ptr<const SublatticeBasis> basis;
     std::vector<double> ellipsoid_upper;      // the walk's ellipsoid
     std::vector<double> reduced_center;       // n, the ellipsoid's centre in this basis
+    std::vector<double> reduced_center_low;   // n, its low part in a double-double set-up, or empty
     std::vector<double> cap_upper;            // the cap block, rows 0..3
     QrFactors conjugate_block;                // R rows 0..n-5
     std::vector<QrFactors> conjugate_places;  // per place where several, R rows 0..3

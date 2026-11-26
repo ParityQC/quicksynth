@@ -10,6 +10,7 @@
 #include "quicksynth/enumerate_lattice/setup.hpp"
 
 #include "quicksynth/enumerate_lattice/lll.hpp"
+#include "quicksynth/data_structures/double_double.hpp"
 #include "quicksynth/support/parallel.hpp"
 
 #include <cmath>
@@ -63,6 +64,21 @@ double over_power_of_two(__int128 k, int sub) {
     return sub == 0 ? x : x * std::ldexp(1.0, -sub);
 }
 
+// The rest k / 2^sub - x of each numerator k after its double x, exact while |k| < 2^106;
+// empty if every rest is zero.
+std::vector<double> low_parts(const std::vector<__int128>& numerators, int sub,
+                              const std::vector<double>& doubles) {
+    std::vector<double> out(numerators.size());
+    bool exact = true;
+    for (size_t i = 0; i < numerators.size(); ++i) {
+        const auto whole = static_cast<__int128>(std::ldexp(doubles[i], sub));
+        out[i] = std::ldexp(static_cast<double>(numerators[i] - whole), -sub);
+        exact = exact && out[i] == 0;
+    }
+    if (exact) out.clear();
+    return out;
+}
+
 // The basis of `level` from a fresh LLL reduction of to_ball M_sub: B = M_sub T and
 // B^-1 = T^-1 M_sub^-1.
 std::shared_ptr<const SublatticeBasis> reduce(const GateSet& gateset,
@@ -86,6 +102,8 @@ std::shared_ptr<const SublatticeBasis> reduce(const GateSet& gateset,
     if (sub == 0) {  // M_0 = 1: B = T
         basis->to_power_basis = std::move(transform.T);
         basis->from_power_basis.assign(transform.T_inv.begin(), transform.T_inv.end());
+        basis->from_power_basis_low =
+            low_parts(widened(transform.T_inv), 0, basis->from_power_basis);
         return basis;
     }
     // below 2^44: M_sub's rows sum to at most 2^sub in absolute value, T's entries are below 2^40
@@ -98,6 +116,7 @@ std::shared_ptr<const SublatticeBasis> reduce(const GateSet& gateset,
     basis->from_power_basis.resize(numerators.size());
     for (size_t i = 0; i < numerators.size(); ++i)
         basis->from_power_basis[i] = over_power_of_two(numerators[i], sub);
+    basis->from_power_basis_low = low_parts(numerators, sub, basis->from_power_basis);
     return basis;
 }
 
@@ -235,7 +254,7 @@ std::optional<SublatticeBasis> next_sublattice_from_preconditioned(
     const std::vector<__int128> numerators =
         product(n, widened(U.T_inv), widened(start.preconditioned_inverse));
 
-    SublatticeBasis out{start.sub, {}, {}};
+    SublatticeBasis out{start.sub, {}, {}, {}};
     out.to_power_basis.reserve(basis.size());
     out.from_power_basis.reserve(numerators.size());
     for (__int128 b : basis) {
@@ -244,7 +263,36 @@ std::optional<SublatticeBasis> next_sublattice_from_preconditioned(
     }
     // final step to get the real inverse (this was left over from the preconditioned inverse)
     for (__int128 k : numerators) out.from_power_basis.push_back(over_power_of_two(k, out.sub));
+    out.from_power_basis_low = low_parts(numerators, out.sub, out.from_power_basis);
     return out;
+}
+
+// The double-double set-up's part of finish_setup(): to_ball_low B added to the identity
+// place's rows of the reduced basis to_ball B, each entry of order one then and rounded twice;
+// and the centre B^-1 (centre + centre_low) in double-double, with B^-1's low part: its entries
+// reach about 2^52 on Clifford+sqrt(T) near eps ~ 1.5e-9 (kMinAlong), and past 2^53 a rounded
+// entry would move the centre by whole lattice steps.
+void add_low_parts(int n, const LoewnerEllipsoid& ellipsoid, const SublatticeBasis& basis,
+                   std::vector<double>& reduced_basis, Setup& setup) {
+    const std::vector<double>& inverse_low = basis.from_power_basis_low;  // empty if exact
+    std::vector<double> low(static_cast<size_t>(kRowsPerPlace) * n);
+    exact_product(n, kRowsPerPlace, ellipsoid.to_ball_low.data(), basis.to_power_basis.data(),
+                  low.data());
+    for (size_t k = 0; k < low.size(); ++k) reduced_basis[k] += low[k];
+    setup.reduced_center.resize(n);
+    setup.reduced_center_low.resize(n);
+    for (int i = 0; i < n; ++i) {
+        DD c{};
+        for (int j = 0; j < n; ++j) {
+            const size_t ij = static_cast<size_t>(i) * n + j;
+            const DD centre{ellipsoid.centre[j], ellipsoid.centre_low[j]};
+            c = c + (inverse_low.empty()
+                         ? centre * basis.from_power_basis[ij]
+                         : centre * DD{basis.from_power_basis[ij], inverse_low[ij]});
+        }
+        setup.reduced_center[i] = c.hi;
+        setup.reduced_center_low[i] = c.lo;
+    }
 }
 
 // The set-up of the search direction `target` at the scale K =
@@ -274,7 +322,10 @@ std::shared_ptr<const Setup> finish_setup(const SearchRegion& region, const Vec4
     std::vector<double> reduced_basis(nn);
     exact_product(n, n, ellipsoid.to_ball.data(), setup->basis->to_power_basis.data(),
                   reduced_basis.data());
-    setup->reduced_center = ordered_matvec(n, setup->basis->from_power_basis, ellipsoid.centre);
+    if (ellipsoid.centre_low.empty())
+        setup->reduced_center = ordered_matvec(n, setup->basis->from_power_basis, ellipsoid.centre);
+    else
+        add_low_parts(n, ellipsoid, *setup->basis, reduced_basis, *setup);
     setup->ellipsoid_upper = qr_positive(n, n, reduced_basis.data()).R;
     // Pruning forms (squared radii): cap block (1), conjugate block (P - 1,
     // origin-centred), one per conjugate place if several (1). They cut only

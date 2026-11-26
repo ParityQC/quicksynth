@@ -158,4 +158,42 @@ TEST_CASE("the cap's ellipsoid holds the cap and is never larger than the box's"
     }
 }
 
+TEST_CASE("below eps ~ 3.5e-7 the walk's ellipsoid is the dome of the cap's true thickness") {
+    // the padded dome is the smallest above, and the set-up stays in doubles
+    for (const double eps : {1e-2, 1e-3, 1e-5, 1e-6, 4e-7}) {
+        INFO("eps ", eps);
+        CHECK_FALSE(SearchRegion(eps, GateSet::sqrt_t()).precise_cap());
+    }
+    // (eps, the double cap ellipsoid's volume over the precise dome's)
+    for (const std::pair<double, double>& row : std::vector<std::pair<double, double>>{
+             {3e-7, 2.85}, {1e-7, 9.07}, {1e-8, 870}, {1e-9, 0.0}, {1e-10, 0.0}, {1e-13, 0.0}}) {
+        // not a structured binding: INFO captures it, which C++17 does not allow
+        const double eps = row.first, gain = row.second;
+        INFO("eps ", eps);
+        const SearchRegion region(eps, GateSet::sqrt_t());
+        REQUIRE(region.precise_cap());
+        const PreciseCap& cap = *region.precise_cap();
+        // the paraboloid's Loewner ellipsoid of the cap at eps + 1e-14: semi-axes 0.8 U along v,
+        // at least 2^-60, and (4 / sqrt(15)) sqrt(2 U) ~ 1.033 eps across; centre 0.8 U below
+        // the tip
+        const double e = eps + 1e-14, U = e * e / (1.0 + std::sqrt(1.0 - e * e));
+        CHECK(cap.along >= 0.8 * U);
+        CHECK(cap.along <= std::max(0.8 * U * (1 + 1e-5), 0x1p-60));
+        CHECK(std::abs(cap.depth / (0.8 * U) - 1) < 1e-5);
+        CHECK(cap.across / e == doctest::Approx(1.033).epsilon(1e-3));
+        // points of the cap at depth u = 1 - t = r^2 / (1 + t), r from 0 (the tip) to eps (the rim)
+        for (const double f : {0.0, 0.25, 0.5, 0.75, 0.999, 1.0}) {
+            const double r = f * eps, t = std::sqrt(1.0 - r * r);
+            const double along = (r * r / (1.0 + t) - cap.depth) / cap.along;
+            const double across = r / cap.across;
+            CHECK(along * along + across * across < 1.0);
+        }
+        const CapEllipsoid& doubles = region.cap_ellipsoid();
+        const double ratio =
+            doubles.along * std::pow(doubles.across, 3) / (cap.along * std::pow(cap.across, 3));
+        if (gain > 0) CHECK(ratio == doctest::Approx(gain).epsilon(0.01));
+        CHECK(ratio > 1.0);
+    }
+}
+
 }  // namespace quicksynth::test

@@ -14,6 +14,10 @@
 // the smallest of three ellipsoids (CapEllipsoid), those around a box, a cylinder and the cap's
 // dome, and the product region in its Loewner ellipsoid. The point estimates count the box's
 // ellipsoid. LLL inputs use a fixed rounding order, so they are reproducible.
+//
+// Below eps ~ 3.5e-7, where the pads make the dome not the smallest, the identity place's rows
+// of the walk's form and its centre are formed in double-double and the walk encloses the cap in
+// the dome of its true thickness instead (PreciseCap).
 #pragma once
 
 #include "quicksynth/enumerate_lattice/walk.hpp"
@@ -22,6 +26,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 namespace quicksynth {
@@ -34,6 +39,10 @@ struct LoewnerEllipsoid {
     // lengths there
     std::vector<double> to_ball;
     std::vector<double> centre;  // n, E^-1 y0
+    // The double-double set-up's low parts (SearchRegion::precise_cap()), else empty: of
+    // to_ball's rows at the identity place (4 x n) and of centre (n).
+    std::vector<double> to_ball_low;
+    std::vector<double> centre_low;
 };
 
 // An ellipsoid that encloses the cap at the identity place, symmetric about the target direction
@@ -41,6 +50,12 @@ struct LoewnerEllipsoid {
 // along v of its centre, which lies on v.
 struct CapEllipsoid {
     double along = 0.0, across = 0.0, centre = 0.0;
+};
+
+// The cap's ellipsoid of the double-double set-up, the dome's: as CapEllipsoid, with the centre
+// given by its depth 1 - t below the tip v, which a double holds where t does not.
+struct PreciseCap {
+    double along = 0.0, across = 0.0, depth = 0.0;
 };
 
 class SearchRegion {
@@ -85,6 +100,9 @@ class SearchRegion {
     // The ellipsoid the walk encloses the cap in: the smallest of those around a box, a cylinder
     // and the cap's dome (search_region.cpp), padded where a solution can lie on its boundary.
     const CapEllipsoid& cap_ellipsoid() const { return cap_; }
+    // The ellipsoid the walk encloses the cap in where the set-up is in double-double, below
+    // eps ~ 3.5e-7; cap_ellipsoid() is then not walked. Empty above.
+    const std::optional<PreciseCap>& precise_cap() const { return precise_cap_; }
 
   private:
     double epsilon_;
@@ -93,6 +111,7 @@ class SearchRegion {
     double half_along_;  // box half-width along the target
     double cap_volume_;  // the box's volume prod(2 h), which the estimates count in
     CapEllipsoid cap_;   // the walk's ellipsoid around the cap
+    std::optional<PreciseCap> precise_cap_;  // in its place below eps ~ 3.5e-7
     double s_min_;
 };
 
