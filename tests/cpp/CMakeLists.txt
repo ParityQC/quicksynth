@@ -37,6 +37,7 @@ set(_QUICKSYNTH_TESTS
   search_scales/test_split.cpp search_scales/test_stopping_rule.cpp
   enumerate_lattice/test_enumerator.cpp enumerate_lattice/test_lll.cpp
   enumerate_lattice/test_search_region.cpp enumerate_lattice/test_setup.cpp
+  enumerate_lattice/test_walk.cpp
   price_candidates/test_price.cpp
   exact_synthesis/test_descent.cpp exact_synthesis/test_normal_form.cpp
   data_structures/test_bloch.cpp data_structures/test_clifford.cpp

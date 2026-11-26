@@ -10,6 +10,7 @@
 #include "quicksynth/enumerate_lattice/setup.hpp"
 
 #include "quicksynth/enumerate_lattice/lll.hpp"
+#include "quicksynth/data_structures/double_double.hpp"
 #include "quicksynth/support/parallel.hpp"
 
 #include <cmath>
@@ -247,6 +248,28 @@ std::optional<SublatticeBasis> next_sublattice_from_preconditioned(
     return out;
 }
 
+// The double-double set-up's part of finish_setup(): to_ball_low B added to the identity
+// place's rows of the reduced basis to_ball B, each entry of order one then and rounded twice;
+// and the centre B^-1 (centre + centre_low) in double-double, B^-1's entries k / 2^sub being
+// exact doubles (SublatticeBasis).
+void add_low_parts(int n, const LoewnerEllipsoid& ellipsoid, const SublatticeBasis& basis,
+                   std::vector<double>& reduced_basis, Setup& setup) {
+    std::vector<double> low(static_cast<size_t>(kRowsPerPlace) * n);
+    exact_product(n, kRowsPerPlace, ellipsoid.to_ball_low.data(), basis.to_power_basis.data(),
+                  low.data());
+    for (size_t k = 0; k < low.size(); ++k) reduced_basis[k] += low[k];
+    setup.reduced_center.resize(n);
+    setup.reduced_center_low.resize(n);
+    for (int i = 0; i < n; ++i) {
+        DD c{};
+        for (int j = 0; j < n; ++j)
+            c = c + DD{ellipsoid.centre[j], ellipsoid.centre_low[j]} *
+                        basis.from_power_basis[static_cast<size_t>(i) * n + j];
+        setup.reduced_center[i] = c.hi;
+        setup.reduced_center_low[i] = c.lo;
+    }
+}
+
 // The set-up of the search direction `target` at the scale K =
 // `denominator_exponent`, from the region's Loewner ellipsoid around it and the
 // level's basis B: the reduced basis to_ball B, formed exactly; the centre in reduced
@@ -274,7 +297,10 @@ std::shared_ptr<const Setup> finish_setup(const SearchRegion& region, const Vec4
     std::vector<double> reduced_basis(nn);
     exact_product(n, n, ellipsoid.to_ball.data(), setup->basis->to_power_basis.data(),
                   reduced_basis.data());
-    setup->reduced_center = ordered_matvec(n, setup->basis->from_power_basis, ellipsoid.centre);
+    if (ellipsoid.centre_low.empty())
+        setup->reduced_center = ordered_matvec(n, setup->basis->from_power_basis, ellipsoid.centre);
+    else
+        add_low_parts(n, ellipsoid, *setup->basis, reduced_basis, *setup);
     setup->ellipsoid_upper = qr_positive(n, n, reduced_basis.data()).R;
     // Pruning forms (squared radii): cap block (1), conjugate block (P - 1,
     // origin-centred), one per conjugate place if several (1). They cut only

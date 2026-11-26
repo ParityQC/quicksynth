@@ -136,6 +136,7 @@ struct Setup {
     std::shared_ptr<const SublatticeBasis> basis;
     std::vector<double> ellipsoid_upper;      // the walk's ellipsoid
     std::vector<double> reduced_center;       // n, the ellipsoid's centre in this basis
+    std::vector<double> reduced_center_low;   // n, its low part in a double-double set-up, or empty
     std::vector<double> cap_upper;            // the cap block, rows 0..3
     QrFactors conjugate_block;                // R rows 0..n-5
     std::vector<QrFactors> conjugate_places;  // per place where several, R rows 0..3
