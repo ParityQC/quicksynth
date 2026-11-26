@@ -120,6 +120,9 @@ struct SublatticeBasis {
     // Its entries k / 2^sub are exact doubles while |k| < 2^53 (next_sublattice_basis()
     // checks).
     std::vector<double> from_power_basis;
+    // B^-1 less from_power_basis, for the double-double centre (finish_setup()): exact while
+    // |k| < 2^106; empty where from_power_basis is exact.
+    std::vector<double> from_power_basis_low;
 };
 
 // Set-up of one direction, built at its reference scale. Valid at every scale
