@@ -235,6 +235,8 @@ def scan_runs() -> list[dict[str, Any]]:
     runs = []
     for gate_set, name in [("clifford_t", "clifford_t"), ("sqrt_t", "clifford_sqrt_t")]:
         for eps in [1e-3, 1e-5]:
+            # time a warm call, as a user synthesising many rotations sees it
+            qs.synthesise(target, eps, gateset=gate_set, **WHOLE_SCALES)
             r = qs.synthesise(target, eps, gateset=gate_set, **WHOLE_SCALES)
             sc = walks(r)
             assert all(w["search"] == "scan" for w in sc)
