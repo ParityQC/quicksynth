@@ -63,9 +63,10 @@ nb::object summary_dict(const std::optional<SearchSummary>& summary) {
     d["scan_cost"] = s.scan_cost;
     d["scan_certified"] = s.scan_certified;
     d["split_ran"] = s.split_ran;
-    d["source"] = s.source == Source::split      ? "split"
-                  : s.source == Source::rotation ? "rotation"
-                                                 : "scan";
+    d["source"] = s.source == Source::split        ? "split"
+                  : s.source == Source::rotation   ? "rotation"
+                  : s.source == Source::clifford_t ? "clifford_t"
+                                                   : "scan";
     return d;
 }
 

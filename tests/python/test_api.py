@@ -135,6 +135,22 @@ def test_clifford_t_gateset_gives_t_count_optimal_words() -> None:
     assert r.certified and r.distance <= 0.1
 
 
+@pytest.mark.parametrize(
+    ("seed", "eps"),
+    [(0, 1e-4), (1, 1e-4), (2, 1e-4), pytest.param(1, 1e-7, marks=pytest.mark.slow)],
+)
+def test_a_dear_sqrt_t_answers_with_the_clifford_t_word(seed: int, eps: float) -> None:
+    # A pure-T word lies far deeper in the sqrt(T) scales than a sqrt(T) word
+    # of its cost; at (1, 10) it is the cheaper, and the Clifford+T search finds
+    # it (at 1e-7 for seed 1 through its split).
+    target = haar_random_unitary(np.random.default_rng(seed))
+    t_only = sq.synthesise(target, eps, gateset="clifford_t")
+    r = sq.synthesise(target, eps, t_cost=1, q_cost=10)
+    assert r.search is not None and r.search["source"] == "clifford_t"
+    assert (r.cost, r.n_t, r.n_q) == (t_only.cost, t_only.n_t, 0)
+    assert r.n_t == r.word.count("T") + r.word.count("t") and r.distance <= eps
+
+
 def test_the_policy_is_read_from_the_core() -> None:
     """POLICY mirrors the core's constants; stage settings are pinned in C++."""
     P = api.POLICY

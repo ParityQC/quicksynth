@@ -45,6 +45,8 @@ class ScaleScan {
         // fixed stopping rule: walk finer levels (SearchRegion::first_level), L per scale
         bool fine_levels = false;
         std::optional<int> extra_levels;  // levels past the first hit; none: L extra_scales
+        // cost to beat: stop where the scale bound reaches it, uncertified
+        std::optional<int64_t> incumbent;
     };
     // Called after each walk with the scale's estimated points.
     using Progress = std::function<void(const Enumerator::Result&, double)>;
@@ -56,6 +58,8 @@ class ScaleScan {
         std::optional<int> last_full_scale;  // deepest scale walked in full
         // in levels (L per scale; L = 1 without finer levels)
         std::optional<int> first_hit_level, last_level;
+        // stopped where the scale bound reached Settings::incumbent
+        bool incumbent_reached = false;
         double estimated_points = 0.0;
         std::vector<SearchLog> log;  // one entry per walk
     };

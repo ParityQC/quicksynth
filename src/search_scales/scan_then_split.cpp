@@ -70,7 +70,7 @@ ScanThenSplit::ScanThenSplit(double epsilon, GateSet gateset, Price price, int t
     split_ = std::make_unique<PrefixSplit>(
         epsilon, std::move(gateset), price, threads, fixed, extra,
         PrefixSplit::Settings{split_budget, settings.split_rate, settings.split_partial,
-                              scan_.levels()});
+                              scan_.levels(), settings.scan.incumbent});
 }
 
 ScanThenSplit::Result ScanThenSplit::run(const Unitary& V, const ScaleScan::Progress& progress) {
@@ -83,10 +83,13 @@ ScanThenSplit::Result ScanThenSplit::run(const Unitary& V, const ScaleScan::Prog
     const ScaleScan::Result s = scan_.run(V, progress);
     Result out{s.best, scan_summary(s), s.log};
     SearchSummary& summary = out.summary;
-    // A certified scan leaves nothing for the split.
+    // A certified scan leaves nothing for the split, nor one stopped by its
+    // incumbent: every deeper scale costs at least the incumbent.
     const double epsilon = scan_.enumerator().epsilon();
     const StoppingModel* model = scan_.model();
-    if (!split_ || s.certified || !(model || !s.best || epsilon < split_below_)) return out;
+    if (!split_ || s.certified || s.incumbent_reached ||
+        !(model || !s.best || epsilon < split_below_))
+        return out;
     summary.split_ran = true;
     PrefixSplit::Result r;
     if (model) {
