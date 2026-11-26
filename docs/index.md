@@ -3,6 +3,10 @@
 
 # QuickSynth
 
+```{raw} html
+<div class="qs-diamonds" aria-hidden="true"><span></span><span></span><span></span></div>
+```
+
 Near-optimal synthesis of single-qubit unitaries over **Clifford+T** and
 **Clifford+√T** at any magic-state price, in a C++ core with a Python interface.
 

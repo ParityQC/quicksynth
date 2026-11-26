@@ -1,37 +1,52 @@
 /* Copyright (c) 2026 Parity Quantum Computing GmbH
    SPDX-License-Identifier: MIT */
 
-/* Interactive figures of "How it works". Method colours are the paper's
-   (Okabe-Ito); the dark-mode steps are validated against the dark surface. */
-
-html[data-theme="light"] {
-  --qs-quicksynth: #0072b2;
-  --qs-cyclosynth: #d55e00;
-  --qs-pygridsynth: #009e73;
-  --qs-bound: #6b7480;
-  --qs-clifford-t: #7a828c;
-  /* price ramp by r = q/t: gate count, power, unfolding, catalysis */
-  --qs-price-0: #62155f;
-  --qs-price-1: #792d75;
-  --qs-price-2: #91438c;
-  --qs-price-3: #a959a3;
-  /* cost ramp of the sphere: cheap (0) to expensive (1) */
-  --qs-seq-0: #0b3d6b;
-  --qs-seq-1: #b7d3ee;
-}
+/* Interactive figures of "How it works", in the ParityQC chart style:
+   QuickSynth red and highlighted, the other methods muted, a thin navy grid. */
 
 html[data-theme="dark"] {
-  --qs-quicksynth: #3a93d8;
-  --qs-cyclosynth: #e46e28;
-  --qs-pygridsynth: #1aa37b;
-  --qs-bound: #9ca4af;
-  --qs-clifford-t: #9ca4af;
-  --qs-price-0: #e2a8dc;
-  --qs-price-1: #cf8bc8;
-  --qs-price-2: #bb6db3;
-  --qs-price-3: #a6519e;
-  --qs-seq-0: #e3effb;
-  --qs-seq-1: #2c4a68;
+  --qs-quicksynth: #e61430;
+  --qs-cyclosynth: #8e97b5;
+  --qs-pygridsynth: #5669ad;
+  --qs-bound: #d6d45e;
+  --qs-clifford-t: #8e97b5;
+  --qs-warn: #ed5816;
+  /* price ramp by r = q/t: gate count, power, unfolding, catalysis */
+  --qs-price-0: #d7f1ea;
+  --qs-price-1: #a4dccd;
+  --qs-price-2: #6fc0aa;
+  --qs-price-3: #3f9c86;
+  /* cost ramp of the sphere: cheap (0) to expensive (1) */
+  --qs-seq-0: #e6f5f0;
+  --qs-seq-1: #2d3966;
+  --qs-grid: #25314f;
+  --qs-axis: #3d4a80;
+  --qs-chart-text: #c9cee0;
+  --qs-glow: rgb(230 20 48 / 70%);
+  /* QuickSynth red for small text: AA on the navy panels */
+  --qs-quicksynth-text: #ff5c70;
+  --qs-figure-bg: rgb(13 24 48 / 70%);
+}
+
+html[data-theme="light"] {
+  --qs-quicksynth: #e61430;
+  --qs-cyclosynth: #7d87aa;
+  --qs-pygridsynth: #5669ad;
+  --qs-bound: #8c891f;
+  --qs-clifford-t: #7d87aa;
+  --qs-warn: #c2410c;
+  --qs-price-0: #0f3f36;
+  --qs-price-1: #1a6355;
+  --qs-price-2: #278571;
+  --qs-price-3: #3a9c86;
+  --qs-seq-0: #121d32;
+  --qs-seq-1: #d5dbec;
+  --qs-grid: #e3e6ef;
+  --qs-axis: #c9cee0;
+  --qs-chart-text: #4f5a7a;
+  --qs-glow: rgb(230 20 48 / 35%);
+  --qs-quicksynth-text: #c8102a;
+  --qs-figure-bg: #ffffff;
 }
 
 .qs-tiles {
@@ -42,28 +57,55 @@ html[data-theme="dark"] {
 }
 
 .qs-tile {
+  position: relative;
   border: 1px solid var(--pst-color-border);
-  border-radius: 0.5rem;
-  padding: 1rem 1.1rem;
-  background: var(--pst-color-on-background);
+  border-radius: 1rem;
+  padding: 1.2rem 1.2rem 1rem;
+  background: var(--qs-figure-bg);
+}
+
+/* a short red bar above each value */
+.qs-tile::before {
+  content: "";
+  display: block;
+  width: 1.8rem;
+  height: 3px;
+  margin-bottom: 0.7rem;
+  border-radius: 2px;
+  background: var(--qs-quicksynth);
 }
 
 .qs-tile-value {
-  font-size: 2rem;
-  font-weight: 650;
+  font-size: 2.1rem;
+  font-weight: 600;
   line-height: 1.1;
-  color: var(--pst-color-text-base);
+  color: var(--pst-color-heading);
   font-variant-numeric: tabular-nums;
 }
 
 .qs-tile-label {
-  margin-top: 0.4rem;
+  margin-top: 0.45rem;
   font-size: 0.9rem;
+  font-weight: 300;
   color: var(--pst-color-text-muted);
+}
+
+html[data-theme="light"] .qs-tile-label {
+  font-weight: 400;
 }
 
 .qs-figure {
   margin: 1rem 0 2rem;
+  padding: 1rem 1.1rem 0.6rem;
+  border: 1px solid var(--pst-color-border-muted);
+  border-radius: 1rem;
+  background: var(--qs-figure-bg);
+}
+
+@media (max-width: 575.98px) {
+  .qs-figure {
+    padding: 0.75rem 0.6rem 0.4rem;
+  }
 }
 
 .qs-controls {
@@ -76,22 +118,30 @@ html[data-theme="dark"] {
 .qs-controls button {
   font: inherit;
   font-size: 0.85rem;
-  padding: 0.25rem 0.7rem;
+  padding: 0.25rem 0.8rem;
   border: 1px solid var(--pst-color-border);
   border-radius: 999px;
   background: transparent;
   color: var(--pst-color-text-base);
   cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+
+.qs-controls button:hover:not(:disabled) {
+  border-color: var(--qs-quicksynth);
 }
 
 .qs-controls button[aria-pressed="true"] {
-  border-color: var(--pst-color-primary);
-  background: var(--pst-color-primary);
-  color: var(--pst-color-background);
+  border-color: var(--qs-quicksynth);
+  background: var(--qs-quicksynth);
+  color: #ffffff;
+  font-weight: 500;
 }
 
 .qs-controls button:focus-visible {
-  outline: 2px solid var(--pst-color-primary);
+  outline: 2px solid var(--qs-lime);
   outline-offset: 2px;
 }
 
@@ -101,7 +151,7 @@ html[data-theme="dark"] {
   gap: 0.3rem 1.1rem;
   margin: 0.6rem 0 0.2rem;
   font-size: 0.85rem;
-  color: var(--pst-color-text-muted);
+  color: var(--qs-chart-text);
 }
 
 .qs-legend span {
@@ -127,18 +177,23 @@ html[data-theme="dark"] {
   font-size: 12px;
 }
 
+/* d3.axis writes font-family="sans-serif" and font-size="10" on each axis */
+.qs-chart .axis {
+  font-family: inherit;
+  font-size: 11px;
+}
+
 .qs-chart .axis text {
-  fill: var(--pst-color-text-muted);
+  fill: var(--qs-chart-text);
 }
 
 .qs-chart .axis path,
 .qs-chart .axis line {
-  stroke: var(--pst-color-border);
+  stroke: var(--qs-axis);
 }
 
 .qs-chart .grid line {
-  stroke: var(--pst-color-border);
-  stroke-opacity: 0.45;
+  stroke: var(--qs-grid);
 }
 
 .qs-chart .axis-title,
@@ -147,7 +202,24 @@ html[data-theme="dark"] {
 }
 
 .qs-chart .label {
-  fill: var(--pst-color-text-base);
+  fill: var(--pst-color-heading);
+}
+
+/* QuickSynth's marks */
+.qs-chart .qs-lead {
+  filter: drop-shadow(0 0 4px var(--qs-glow));
+}
+
+/* speed-up labels: a pill with a red outline */
+.qs-chart .qs-pill rect {
+  fill: var(--pst-color-background);
+  stroke: var(--qs-quicksynth);
+  stroke-width: 1.5;
+}
+
+.qs-chart .qs-pill text {
+  fill: var(--pst-color-heading);
+  font-weight: 600;
 }
 
 .qs-chart .hit {
@@ -161,7 +233,7 @@ html[data-theme="dark"] {
 
 .qs-chart .hit:focus-visible + .ring,
 .qs-chart .ring.active {
-  stroke: var(--pst-color-text-base);
+  stroke: var(--pst-color-heading);
   stroke-width: 1.5;
 }
 
@@ -170,12 +242,12 @@ html[data-theme="dark"] {
   pointer-events: none;
   z-index: 10;
   min-width: 9rem;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--pst-color-border);
-  border-radius: 0.4rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--qs-axis);
+  border-radius: 0.6rem;
   background: var(--pst-color-background);
   color: var(--pst-color-text-base);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
+  box-shadow: 0 4px 16px var(--pst-color-shadow);
   font-size: 0.8rem;
   line-height: 1.35;
 }
@@ -192,6 +264,8 @@ html[data-theme="dark"] {
 }
 
 .qs-tooltip .qs-tip-row b {
+  font-weight: 600;
+  color: var(--pst-color-heading);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -207,6 +281,17 @@ html[data-theme="dark"] {
   font-size: 0.85rem;
   color: var(--pst-color-text-muted);
   margin-top: 0.3rem;
+}
+
+.qs-table summary {
+  font-size: 0.85rem;
+  color: var(--pst-color-link);
+  cursor: pointer;
+  margin-bottom: 0.4rem;
+}
+
+.qs-table > div {
+  overflow-x: auto;
 }
 
 .qs-table table {
@@ -240,7 +325,7 @@ html[data-theme="dark"] {
 }
 
 .qs-sliders input[type="range"] {
-  accent-color: var(--pst-color-primary);
+  accent-color: var(--qs-quicksynth);
 }
 
 .qs-sliders .qs-controls {
@@ -280,8 +365,9 @@ html[data-theme="dark"] {
   min-height: 4.2em;
   margin: 0.4rem 0 0.2rem;
   padding: 0.5rem 0.75rem;
-  border-left: 3px solid var(--pst-color-primary);
-  background: var(--pst-color-on-background);
+  border-left: 3px solid var(--qs-quicksynth);
+  border-radius: 0 0.5rem 0.5rem 0;
+  background: var(--pst-color-surface);
   font-size: 0.9rem;
 }
 
@@ -343,6 +429,6 @@ html[data-theme="dark"] {
 }
 
 .qs-gates .qs-gate-q {
-  color: var(--qs-quicksynth);
+  color: var(--qs-quicksynth-text);
   font-weight: 700;
 }

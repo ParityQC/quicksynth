@@ -58,6 +58,9 @@ html_theme = "pydata_sphinx_theme"
 html_title = "QuickSynth"
 html_static_path = ["_static"]
 html_css_files = ["brand.css", "showcase/showcase.css"]
+# fonts/Outfit.woff2 (SIL OFL 1.1, fonts/OFL-Outfit.txt) stands in for
+# ParityQC's Sofia Pro, with Inter subsets (fonts/OFL-Inter.txt) for the
+# glyphs it lacks; logo and favicon are ParityQC's
 
 # GitHub Pages serves index.html at the root; it forwards to docs/index.html
 html_extra_path = ["_extra"]
@@ -67,7 +70,7 @@ html_theme_options = {
         "image_light": "_static/logo-light.svg",
         "image_dark": "_static/logo-dark.svg",
         "text": "QuickSynth",
-        "alt_text": "QuickSynth",
+        "alt_text": "ParityQC",
     },
     "icon_links": [
         {
@@ -81,7 +84,7 @@ html_theme_options = {
     "footer_start": ["copyright"],
     "footer_end": [],
 }
-html_context = {"default_mode": "auto"}
+html_context = {"default_mode": "dark"}
 
 
 def _orphan(app, docname, source):
@@ -90,5 +93,15 @@ def _orphan(app, docname, source):
         source[0] = "---\norphan: true\n---\n" + source[0]
 
 
+def _favicons(app, pagename, templatename, context, doctree):
+    # SVG favicon with a PNG fallback; html_favicon takes a single file
+    static = context["pathto"]("_static/", 1)
+    context["metatags"] = context.get("metatags", "") + (
+        f'<link rel="icon" href="{static}favicon.png" type="image/png" sizes="64x64">\n'
+        f'<link rel="icon" href="{static}favicon.svg" type="image/svg+xml">\n'
+    )
+
+
 def setup(app):
     app.connect("source-read", _orphan)
+    app.connect("html-page-context", _favicons)

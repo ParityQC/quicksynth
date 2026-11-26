@@ -608,7 +608,8 @@
           .append("path")
           .attr("fill", "none")
           .attr("stroke", qs)
-          .attr("stroke-width", 2)
+          .attr("stroke-width", 2.6)
+          .classed("qs-lead", true)
           .attr(
             "d",
             d3
@@ -879,7 +880,7 @@
       const muted = color("--pst-color-text-muted");
       const qs = color("--qs-quicksynth");
       const border = color("--pst-color-border");
-      const warn = color("--qs-cyclosynth");
+      const warn = color("--qs-warn");
 
       keyLegend(root.querySelector(".qs-legend"), [
         { label: "search region", color: qs, kind: "bar", opacity: 0.25 },
