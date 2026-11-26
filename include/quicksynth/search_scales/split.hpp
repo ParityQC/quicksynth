@@ -56,6 +56,8 @@ class PrefixSplit {
         bool partial = false;
         // run(): levels per scale (SearchRegion::first_level); 1: whole scales
         int levels = 1;
+        // run(): cost to beat; stop where the scale bound reaches it
+        std::optional<int64_t> incumbent;
     };
     struct Result {
         // first of the cheapest composites P R

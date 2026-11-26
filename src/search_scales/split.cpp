@@ -142,6 +142,8 @@ PrefixSplit::Result PrefixSplit::run_one(const Unitary& V, const PrefixSet& set,
         const int K = level_at(l, L).K;
         const std::optional<double> bound = split_scale_bound(gateset, price_, K);
         if (out.best && bound && *bound >= static_cast<double>(out.best->cost.value)) break;
+        if (settings_.incumbent && bound && *bound >= static_cast<double>(*settings_.incumbent))
+            break;
         if (out.best && (!best_cost || out.best->cost.value < *best_cost))
             best_cost = out.best->cost.value;
         size_t walked = prefixes.size();

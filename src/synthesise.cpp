@@ -250,6 +250,87 @@ std::optional<Synthesised> QuickSynth::rotation_stage(const Unitary& U, double e
 Synthesised QuickSynth::synthesise(const Unitary& U, double epsilon) const {
     const double start = wall_seconds();
     const Settings& s = settings_;
+    Synthesised out = search(U, epsilon);
+    if (s.gateset.step != 1) return out;
+    if (s.time_limit && wall_seconds() > start + *s.time_limit) return out;
+    Settings t_only = s;
+    t_only.gateset = GateSet::clifford_t();
+    t_only.verbose = false;
+    std::optional<double> deadline;
+    if (s.time_limit) deadline = start + *s.time_limit;
+    std::optional<Synthesised> pure =
+        QuickSynth(t_only).cheaper_than(U, epsilon, out.cost.value, deadline);
+    if (!pure) return out;
+    // respelt at the sqrt(T) price, as the stages spell (T as Q Q where 2q <= t)
+    const CyclotomicMatrix e = word_matrix(pure->word);
+    std::optional<Synthesised> answer =
+        accept(U, epsilon, Descent(price_.t, price_.q).word(e.matrix, e.denominator_exponent), {});
+    if (!answer) return out;
+    answer->cost = Pricer::for_gateset(s.gateset, price_).price(word_matrix(answer->word));
+    if (answer->cost.value >= out.cost.value) return out;
+    if (s.verbose)
+        print_line("Clifford+T comparison: cost " + std::to_string(answer->cost.value) +
+                       ", cheaper than " + std::to_string(out.cost.value),
+                   false);
+    answer->stages = pure->stages;
+    answer->search = std::move(pure->search);
+    answer->search->source = Source::clifford_t;
+    answer->log = std::move(out.log);
+    return *answer;
+}
+
+std::optional<Synthesised> QuickSynth::cheaper_than(const Unitary& U, double epsilon, int64_t cost,
+                                                    std::optional<double> deadline) const {
+    const Settings& s = settings_;
+    if (s.rotation_path) {
+        std::vector<std::pair<int, SearchLog>> log;
+        bool final = false;
+        std::optional<Synthesised> found = rotation_stage(U, epsilon, deadline, log, final);
+        if (found && found->cost.value < cost) return found;
+        if (found) return std::nullopt;  // final on Clifford+T
+    }
+    const bool fallback = s.stopping_rule == StoppingRule::model && stopping_fallback(U);
+    const std::vector<Stage> all = stages(epsilon, s.gateset, first_stage(epsilon, fallback));
+    const double target = epsilon - kEpsilonMargin;
+    const int threads = std::max(1, s.workers);
+    for (size_t i = 1; i <= all.size(); ++i) {
+        poll_interrupt();
+        if (deadline && wall_seconds() > *deadline) return std::nullopt;
+        ScanThenSplit::Settings stage = all[i - 1].settings;
+        stage.scan.incumbent = cost;
+        // the scan alone first: at most prices it reaches the incumbent and
+        // the split's prefix ball is never built
+        ScaleScan scan(target, s.gateset, price_, threads, stage.scan);
+        const ScaleScan::Result alone = scan.run(U);
+        // nothing below the incumbent at any scale
+        if (alone.incumbent_reached && !(alone.best && alone.best->cost.value < cost))
+            return std::nullopt;
+        ScanThenSplit::Result found{alone.best, scan_summary(alone), {}};
+        if (!alone.incumbent_reached && !alone.certified) {
+            ScanThenSplit search(target, s.gateset, price_, threads,
+                                 stage_ball(epsilon, stage.prefix_scale.value()), stage,
+                                 stopping_ball(stage));
+            found = search.run(U);
+        }
+        if (!found.best || found.best->cost.value >= cost) {
+            if (alone.certified) return std::nullopt;  // the optimum is no cheaper
+            continue;
+        }
+        const CyclotomicMatrix& e = found.best->element;
+        std::optional<Synthesised> answer =
+            accept(U, epsilon, Descent(1, price_.q).word(e.matrix, e.denominator_exponent),
+                   found.best->cost);
+        if (!answer) continue;
+        answer->stages = static_cast<int>(i);
+        answer->search = std::move(found.summary);
+        return answer;
+    }
+    return std::nullopt;
+}
+
+Synthesised QuickSynth::search(const Unitary& U, double epsilon) const {
+    const double start = wall_seconds();
+    const Settings& s = settings_;
     const bool use_q = s.gateset.step == 1;
     // t_cost > 2 q_cost, overflow-free for prices >= 1
     if (use_q && price_.t - price_.q > price_.q)
