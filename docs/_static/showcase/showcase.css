@@ -23,6 +23,8 @@ html[data-theme="dark"] {
   --qs-axis: #3d4a80;
   --qs-chart-text: #c9cee0;
   --qs-glow: rgb(230 20 48 / 70%);
+  /* QuickSynth red for small text: AA on the navy panels */
+  --qs-quicksynth-text: #ff5c70;
   --qs-figure-bg: rgb(13 24 48 / 70%);
 }
 
@@ -33,16 +35,17 @@ html[data-theme="light"] {
   --qs-bound: #8c891f;
   --qs-clifford-t: #7d87aa;
   --qs-warn: #c2410c;
-  --qs-price-0: #1f6f60;
-  --qs-price-1: #2f8a78;
-  --qs-price-2: #4fae9a;
-  --qs-price-3: #7cc8b5;
+  --qs-price-0: #0f3f36;
+  --qs-price-1: #1a6355;
+  --qs-price-2: #278571;
+  --qs-price-3: #3a9c86;
   --qs-seq-0: #121d32;
   --qs-seq-1: #d5dbec;
   --qs-grid: #e3e6ef;
   --qs-axis: #c9cee0;
   --qs-chart-text: #4f5a7a;
   --qs-glow: rgb(230 20 48 / 35%);
+  --qs-quicksynth-text: #c8102a;
   --qs-figure-bg: #ffffff;
 }
 
@@ -172,6 +175,12 @@ html[data-theme="light"] .qs-tile-label {
   display: block;
   overflow: visible;
   font-size: 12px;
+}
+
+/* d3.axis writes font-family="sans-serif" and font-size="10" on each axis */
+.qs-chart .axis {
+  font-family: inherit;
+  font-size: 11px;
 }
 
 .qs-chart .axis text {
@@ -420,6 +429,6 @@ html[data-theme="light"] .qs-tile-label {
 }
 
 .qs-gates .qs-gate-q {
-  color: var(--qs-quicksynth);
+  color: var(--qs-quicksynth-text);
   font-weight: 700;
 }

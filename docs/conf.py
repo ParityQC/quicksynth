@@ -59,7 +59,8 @@ html_title = "QuickSynth"
 html_static_path = ["_static"]
 html_css_files = ["brand.css", "showcase/showcase.css"]
 # fonts/Outfit.woff2 (SIL OFL 1.1, fonts/OFL-Outfit.txt) stands in for
-# ParityQC's Sofia Pro; logo and favicon are ParityQC's
+# ParityQC's Sofia Pro, with Inter subsets (fonts/OFL-Inter.txt) for the
+# glyphs it lacks; logo and favicon are ParityQC's
 
 # GitHub Pages serves index.html at the root; it forwards to docs/index.html
 html_extra_path = ["_extra"]
