@@ -142,6 +142,21 @@ std::string CostBall::word(int cost, int index) const {
     return w;
 }
 
+std::vector<CostBall::Syllable> CostBall::syllables(int cost, int index) const {
+    const std::vector<int8_t> path = chain(cost, index);
+    std::vector<Syllable> out;
+    for (auto it = path.rbegin(); it != path.rend(); ++it)
+        out.push_back({generators_[*it].word.back() == 'T' ? 0 : 1, connector_in_K_[*it]});
+    return out;
+}
+
+std::optional<std::pair<int, int>> CostBall::parent(int cost, int index) const {
+    const Level& l = levels_.at(cost);
+    const int g = l.generator[index];
+    if (g < 0) return std::nullopt;
+    return std::make_pair(cost - generators_[g].weight, static_cast<int>(l.parent_index[index]));
+}
+
 void CostBall::grow(int c) {
     // The identity takes every generator; other cosets only connectors outside
     // K (normal-form successors). Each parent numerator is computed once.

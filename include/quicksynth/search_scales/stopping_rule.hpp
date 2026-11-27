@@ -38,8 +38,10 @@
 #include "quicksynth/search_scales/scale_bound.hpp"
 #include "quicksynth/price_candidates/price.hpp"
 #include "quicksynth/data_structures/gate_set.hpp"
+#include "quicksynth/data_structures/prefix_sets.hpp"
 #include "quicksynth/data_structures/su2.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <functional>
@@ -62,13 +64,16 @@ constexpr double kDefaultRate = 0.3;
 constexpr double kFastRate = 3.0;
 
 // Fast setting with finer levels on Clifford+sqrt(T): LevelSearch's rate (level
-// gain over walk_seconds), fitted by replaying the fine-level sweep logs at cost
-// parity with kFastRate on whole scales.
-constexpr double kFineFastRate = 6.0;
+// gain over walk_seconds). Chosen for the per-prefix split on 40 Haar targets at
+// 1e-6, 1e-7 and 1e-8: no dearer on average than the level-wide split at 6, which
+// matched kFastRate on whole scales, in 4% less CPU time at 1e-6 and 36% at 1e-7.
+constexpr double kFineFastRate = 24.0;
 
-// Finer levels without fast: LevelSearch's rate. Chosen on 40 Haar targets at 31
-// precisions: mean cost 0.3 below whole scales at kDefaultRate, at 0.7x their CPU time.
-constexpr double kFineDefaultRate = 0.2;
+// Finer levels without fast: LevelSearch's rate. Chosen for the per-prefix split on
+// 40 Haar targets at 1e-6, 1e-7 and 1e-8: the mean cost of the level-wide split at
+// 0.2 (which was 0.3 below whole scales at kDefaultRate, at 0.7x their CPU time), in
+// 34% less CPU time.
+constexpr double kFineDefaultRate = 0.3;
 
 // Fixed stopping rule: predicted saving of a further scale, as a fraction of best cost.
 constexpr double kScaleSaving = 0.06;
@@ -119,10 +124,13 @@ std::vector<int> stopping_extra_scales(int prefix_scale);
 // t_syllable_cost; Clifford+T ignores q. Rows are complete: every gate of scale
 // <= kmax costs at most cost_cap(). With `by_level` a row is a finer level
 // l = 0..L kmax instead (SearchRegion::first_level): the gate's delta-adic exponent,
-// the first level that holds it.
+// the first level that holds it. With `first_syllable` (0: T, 1: Q) only the normal
+// forms that start with a connector and a syllable of that type are counted: the
+// remainders R of the split's U = P R.
 class Census {
   public:
-    Census(const GateSet& gateset, const Price& price, int kmax, bool by_level = false);
+    Census(const GateSet& gateset, const Price& price, int kmax, bool by_level = false,
+           std::optional<int> first_syllable = std::nullopt);
     int kmax() const { return kmax_; }
     int rows() const { return rows_; }
     int64_t cost_cap() const { return cmax_; }
@@ -241,49 +249,85 @@ struct LevelRates {
     double scan, split;
 };
 
+// A walk of the split's prefix `prefix` (an index into its set) from composite
+// level `from`, the last it walked, to `to`.
+struct PrefixWalk {
+    size_t prefix;
+    int from, to;
+};
+
 // Expected saving, in cost units, of walking further finer levels with best cost
-// `best` in hand. Levels nest, so walking level a walks every level up to a.
+// `best` in hand. Levels nest, so walking level a walks every level up to a. Each
+// of the split's prefixes has its own depth, the last composite level it walked.
 class LevelGain {
   public:
     virtual ~LevelGain() = default;
-    // Scan levels (cov, a]; the split has walked (cov, scov] at its coverage
-    // (scov <= cov: none).
-    virtual double scan(int cov, int a, int scov, int64_t best) const = 0;
-    // Split levels (lo, y], lo the deeper of both searches' last levels.
-    virtual double split(int lo, int y, int64_t best) const = 0;
+    // Scan levels (cov, a], the split's prefixes at `depths`.
+    virtual double scan(int cov, int a, const std::vector<int>& depths, int64_t best) const = 0;
+    // The split's `walks` together; gates of levels <= cov are the scan's.
+    virtual double split(int cov, const std::vector<PrefixWalk>& walks, int64_t best) const = 0;
+    // Prefixes of one class gain alike from equal depths.
+    virtual int prefix_class(size_t prefix) const = 0;
+    // Prefixes walked per split step, of the set's `prefixes`.
+    virtual size_t batch(size_t prefixes) const = 0;
     // Scan and split rates for the search's rate, fitted with the gain.
     virtual LevelRates rates(double rate) const = 0;
 };
 
 // Census gain: gates of level l and cost c within epsilon as Poisson with mean
-// N(l, c) mu(epsilon) (Census by_level). A range saves
-//   sum_{c<best} 1 - exp(-w mu A(c)),
-// A(c) its gates of cost <= c, w = 1 for the scan and kLevelSplitCoverage for
-// the split. Rates: scan at the search's rate, split at the rate over
-// kCensusSplitRateDivisor. Fitted by replaying the 20-target fine-level sweep logs.
-constexpr double kLevelSplitCoverage = 0.25;
+// N(l, c) mu(epsilon) (Census by_level). Walks save
+//   sum_{c<best} 1 - exp(-mu A(c)),
+// A(c) the gates of cost <= c they reach first. Prefix P of scale k reaches
+// U = P R, R a normal form starting with a connector, at composite level
+// level(R) + L k, with cost(U) = cost(P) + cost(R) and level(U) = level(R) + W(P),
+// W(P) the exponent of P's syllables less the overlap of a bare first syllable.
+// Of those, P reaches first the U whose R starts with a syllable type b for which
+// the set holds no child P C b. The scan saves the gates of its levels no prefix
+// has reached. The split walks the kPrefixBatch most valuable prefixes at a time.
+// Rates: scan at the search's rate, split at the rate over
+// kCensusSplitRateDivisor, fitted with the earlier level gain on the 20-target
+// fine-level sweep logs.
+constexpr size_t kPrefixBatch = 16;
 constexpr double kCensusSplitRateDivisor = 4.0;
 class CensusGain final : public LevelGain {
   public:
     // Levels up to L (start + model span), start the scan's first scale; requires
-    // has_stopping_model(gateset, price, start).
-    CensusGain(const GateSet& gateset, const Price& price, double epsilon, int start);
-    double scan(int cov, int a, int scov, int64_t best) const override;
-    double split(int lo, int y, int64_t best) const override;
+    // has_stopping_model(gateset, price, start). `split`: the split's prefix set,
+    // null for none.
+    CensusGain(const GateSet& gateset, const Price& price, double epsilon, int start,
+               const PrefixSet* split = nullptr);
+    double scan(int cov, int a, const std::vector<int>& depths, int64_t best) const override;
+    double split(int cov, const std::vector<PrefixWalk>& walks, int64_t best) const override;
+    int prefix_class(size_t prefix) const override { return prefixes_[prefix].shape; }
+    size_t batch(size_t prefixes) const override { return std::min(prefixes, kPrefixBatch); }
     LevelRates rates(double rate) const override { return {rate, rate / kCensusSplitRateDivisor}; }
 
   private:
+    using Counts = std::vector<std::vector<double>>;  // [l][c], cumulative
+    struct Prefix {
+        int64_t cost;
+        int shift;                  // W(P) = level(U) - level(R)
+        std::array<bool, 2> first;  // R's first syllable types it reaches first
+        int shape;                  // prefix_class
+    };
     // mu x gates of levels (lo, hi] and cost <= c
     double intensity(int lo, int hi, size_t c) const;
+    // mu x gates P R of cost <= c that `p` reaches first, R of levels (lo, hi]
+    double reached(const Prefix& p, int lo, int hi, size_t c) const;
     template <class Intensity>
     double saving(int64_t best, const Intensity& at) const;
-    std::shared_ptr<const std::vector<std::vector<double>>> counts_;  // [l][c], cumulative
+    std::shared_ptr<const Counts> counts_;
+    std::array<std::shared_ptr<const Counts>, 2> remainders_;  // first syllable T, Q
+    std::vector<Prefix> prefixes_;
+    int offset_ = 0;  // L k: composite level - remainder level
     double mu_;
 };
 
 // Decay gain, for targets the census does not describe (stopping_fallback, or no
 // model for the price): level o past the first answer's saves
 // best kDecayFirstSaving kDecayPerLevel^o; the split covers kDecaySplitCoverage.
+// It tells no prefixes apart: each saves its share of the level, and the split
+// walks them all together.
 // Rates: the search's rate over kDecayScanRateDivisor and kDecaySplitRateDivisor.
 constexpr double kDecayFirstSaving = 0.026;
 constexpr double kDecayPerLevel = 0.8;
@@ -292,9 +336,13 @@ constexpr double kDecayScanRateDivisor = 2.0;
 constexpr double kDecaySplitRateDivisor = 6.0;
 class DecayGain final : public LevelGain {
   public:
-    explicit DecayGain(int first_answer_level) : first_(first_answer_level) {}
-    double scan(int cov, int a, int scov, int64_t best) const override;
-    double split(int lo, int y, int64_t best) const override;
+    // `prefixes`: the split's prefixes
+    DecayGain(int first_answer_level, size_t prefixes)
+        : first_(first_answer_level), prefixes_(prefixes) {}
+    double scan(int cov, int a, const std::vector<int>& depths, int64_t best) const override;
+    double split(int cov, const std::vector<PrefixWalk>& walks, int64_t best) const override;
+    int prefix_class(size_t) const override { return 0; }
+    size_t batch(size_t prefixes) const override { return prefixes; }
     LevelRates rates(double rate) const override {
         return {rate / kDecayScanRateDivisor, rate / kDecaySplitRateDivisor};
     }
@@ -303,11 +351,14 @@ class DecayGain final : public LevelGain {
     // saving fraction of levels up to l
     double reached(int l) const;
     int first_;
+    size_t prefixes_;
 };
 
 // CensusGain, or DecayGain where stopping_fallback(V) or the price has no model.
+// `split`: the split's prefix set, null for none.
 std::unique_ptr<LevelGain> level_gain(const GateSet& gateset, const Price& price, double epsilon,
-                                      const Unitary& V, int start, int first_answer_level);
+                                      const Unitary& V, int start, int first_answer_level,
+                                      const PrefixSet* split);
 
 // Whether V is outside the model: fixed by a nontrivial U -> C U C^-1 or
 // U -> C U^T C^-1 (C Clifford), so its epsilon-ball holds multi-gate orbits.

@@ -61,13 +61,13 @@ def test_unitary_qasm_output(capsys) -> None:
 
 def test_fine_levels_flag(capsys) -> None:
     """--fine-levels and --no-fine-levels set fine_levels; else it is None (on).
-    The flag reaches the search: a non-rotation target (seed 22, where the two
-    settings give different words) matches the API word for word."""
+    The flag reaches the search: a non-rotation target (seed 58, where the two
+    settings give words of different cost) matches the API word for word."""
     parse = build_parser().parse_args
     assert _config(parse(["pi/7", "1e-5", "--fast"])).fine_levels is None
     assert _config(parse(["pi/7", "1e-5", "--fine-levels"])).fine_levels is True
     assert _config(parse(["pi/7", "1e-5", "--no-fine-levels"])).fine_levels is False
-    U = haar_random_unitary(np.random.default_rng(22))
+    U = haar_random_unitary(np.random.default_rng(58))
     text = json.dumps([[[z.real, z.imag] for z in row] for row in U])
     words = []
     for flag, fine_levels in (([], None), (["--no-fine-levels"], False)):
@@ -77,6 +77,16 @@ def test_fine_levels_flag(capsys) -> None:
         assert out["word"] == r.word and out["distance"] <= 1e-6
         words.append(r.word)
     assert words[0] != words[1]
+
+
+def test_rate_flag() -> None:
+    """--rate sets the config's rate, which must be positive; without it, None."""
+    parse = build_parser().parse_args
+    assert _config(parse(["pi/7", "1e-5"])).rate is None
+    assert _config(parse(["pi/7", "1e-5", "--rate", "6"])).rate == 6.0
+    assert _config(parse(["pi/7", "1e-5", "--fast", "--rate", "0.5"])).rate == 0.5
+    with pytest.raises(ValueError, match="rate"):
+        _config(parse(["pi/7", "1e-5", "--rate", "0"]))
 
 
 def test_the_method_is_quicksynth(capsys) -> None:

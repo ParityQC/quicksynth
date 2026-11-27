@@ -386,6 +386,7 @@ class QuickSynth:
             verbose=cfg.verbose,
             stopping_rule=cfg.stopping_rule,
             fast=cfg.fast,
+            rate=cfg.rate,
             fine_levels=cfg.fine_levels,
             rotation_path=cfg.rotation_path,
             rotation_tolerance=float(cfg.rotation_tolerance),

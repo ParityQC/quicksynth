@@ -110,10 +110,12 @@ class PrefixSplit {
     Prefixed prefixed(const Unitary& V, size_t set) const;
     // none below the prefix scale
     std::optional<Level> level(const Prefixed& p, int l) const;
-    // Walks composite level l on every prefix, each walk capped at its share of
-    // the point budget; keeps the first cheapest composite within epsilon in
-    // `best`. Returns the level's log entry.
-    SearchLog walk_level(const Prefixed& p, int l, std::optional<Enumerator::Hit>& best);
+    // Walks composite level l on `prefixes` (ascending indices into the set),
+    // each walk capped at its share of the point budget over every prefix; keeps
+    // the first cheapest composite within epsilon in `best`. Returns the walks'
+    // log entry.
+    SearchLog walk_level(const Prefixed& p, int l, const std::vector<size_t>& prefixes,
+                         std::optional<Enumerator::Hit>& best);
 
   private:
     Result run_one(const Unitary& V, const PrefixSet& set, int scales, std::optional<int> first,
@@ -127,14 +129,14 @@ class PrefixSplit {
         bool found = false;
         int64_t visited = 0;
     };
-    // Walks composite scale K: one problem per prefix and determinant class at
-    // scale K - set.scale (the first `count` problems), each capped at `leaf_cap`
-    // leaves. Keeps the first
-    // cheapest P R within epsilon in `best`; returns whether any was found and
-    // the leaves visited.
+    // Walks composite scale K: one problem per prefix of `prefixes` (ascending
+    // indices into the set) and determinant class at scale K - set.scale, each
+    // capped at `leaf_cap` leaves. Keeps the first cheapest P R within epsilon in
+    // `best`; returns whether any was found and the leaves visited.
     Composite walk_composite(const PrefixSet& set, const std::vector<Enumerator::Problem>& problems,
                              const Vec4& target, int K, int64_t leaf_cap,
-                             std::optional<Enumerator::Hit>& best, size_t count, int sub = 0);
+                             std::optional<Enumerator::Hit>& best,
+                             const std::vector<size_t>& prefixes, int sub = 0);
 
     double epsilon_;
     Price price_;

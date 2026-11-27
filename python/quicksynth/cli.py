@@ -119,6 +119,15 @@ def build_parser() -> argparse.ArgumentParser:
         "stop past the first answer sooner",
     )
     p.add_argument(
+        "--rate",
+        type=float,
+        default=None,
+        metavar="R",
+        help="magic states a walk past the first answer must save per second: "
+        "larger is faster and dearer (default: POLICY.fine_rate on Clifford+sqrt(T), "
+        "POLICY.fine_fast_rate with --fast)",
+    )
+    p.add_argument(
         "--fine-levels",
         action=argparse.BooleanOptionalAction,
         default=None,

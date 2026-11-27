@@ -83,14 +83,24 @@ TEST_CASE("the level search answers within epsilon and never above its first ans
                 CHECK((!r.summary.scan_cost || r.best->cost.value < *r.summary.scan_cost));
             else
                 CHECK(r.best->cost.value == r.summary.scan_cost);
-            // each search walks its levels in increasing order
-            int scan_last = -1, split_last = -1;
+            // the scan walks its levels in increasing order; past the first answer each
+            // split walk takes at most a batch of prefixes beyond that answer's level
+            const SearchRegion region(eps, GateSet::sqrt_t());
+            int scan_last = -1;
+            std::optional<int> answered;
             for (const SearchLog& e : r.log) {
-                int& last = e.prefix_scale ? split_last : scan_last;
-                if (!e.prefix_scale && level_of(e) == last) continue;  // second class
-                CHECK(level_of(e) > last);
-                last = level_of(e);
-                split_walks += e.prefix_scale ? 1 : 0;
+                if (!e.prefix_scale) {
+                    if (level_of(e) != scan_last) CHECK(level_of(e) > scan_last);  // two classes
+                    scan_last = level_of(e);
+                } else {
+                    ++split_walks;
+                    if (answered) {
+                        CHECK(level_of(e) > *answered);
+                        const double est = region.estimate_points(e.scale - *e.prefix_scale, e.sub);
+                        CHECK(e.estimated <= 2.0 * kPrefixBatch * est * (1 + 1e-12));
+                    }
+                }
+                if (!answered && e.best_cost) answered = level_of(e);
             }
         }
     }

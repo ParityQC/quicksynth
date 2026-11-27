@@ -13,9 +13,13 @@
 (``tests/fixtures/fingerprint.json``).
 
     python tools/fingerprint.py check [--fast] [-n PROCESSES] [--case ID ...]
+    python tools/fingerprint.py update [--fast] [-n PROCESSES] [--case ID ...]
     python tools/fingerprint.py record [-n PROCESSES] [--records internal/data]
 
-Refactors that must not change answers have to pass ``check``. A case is one
+Refactors that must not change answers have to pass ``check``. A change meant
+to alter answers re-records the cases it changes with ``update``, in place: it
+prints what ``check`` would and keeps the other cases, the fast marks and
+``meta`` (the commit of the last full ``record``). A case is one
 call: target, epsilon and settings (gate set, price and stopping rule always given).
 Targets are stored as the core's input unitary in hexadecimal floats, so the
 check does not depend on the host LAPACK. Compared: every result field
@@ -613,18 +617,26 @@ def load(path: Path = FIXTURE) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def select(cases: list[Case], ids: Sequence[str] | None, fast: bool) -> list[Case]:
+    """The cases with ``ids``, else the fast subset with ``fast``, else all.
+    Raises ValueError naming any id not among ``cases``."""
+    if ids:
+        wanted = set(ids)
+        chosen = [c for c in cases if c["id"] in wanted]
+        missing = wanted - {c["id"] for c in chosen}
+        if missing:
+            raise ValueError(f"no such case: {sorted(missing)}")
+        return chosen
+    return [c for c in cases if c["fast"]] if fast else cases
+
+
 def check(args: argparse.Namespace) -> int:
     fixture = load(Path(args.fixture))
-    cases = fixture["cases"]
-    if args.case:
-        wanted = set(args.case)
-        cases = [c for c in cases if c["id"] in wanted]
-        missing = wanted - {c["id"] for c in cases}
-        if missing:
-            print(f"no such case: {sorted(missing)}")
-            return 2
-    elif args.fast:
-        cases = [c for c in cases if c["fast"]]
+    try:
+        cases = select(fixture["cases"], args.case, args.fast)
+    except ValueError as exc:
+        print(exc)
+        return 2
     print(
         f"fingerprint of {fixture['meta']['commit']}; checking {len(cases)} cases "
         f"on {args.processes} processes",
@@ -643,15 +655,54 @@ def check(args: argparse.Namespace) -> int:
     return 1 if differing else 0
 
 
+def update(args: argparse.Namespace) -> int:
+    """Re-records in place the cases whose outcome differs, printing each
+    difference as ``check`` does; the other cases, the fast marks and ``meta``
+    stay as they are."""
+    path = Path(args.fixture)
+    fixture = load(path)
+    try:
+        cases = select(fixture["cases"], args.case, args.fast)
+    except ValueError as exc:
+        print(exc)
+        return 2
+    print(
+        f"fingerprint of {fixture['meta']['commit']}; re-recording {len(cases)} cases "
+        f"in place on {args.processes} processes",
+        flush=True,
+    )
+    changed = 0
+    for case, got in zip(cases, run_all(cases, args.processes), strict=True):
+        lines = diff(outcome(case), got)
+        if not lines:
+            continue
+        changed += 1
+        print(f"{case['id']}:")
+        for line in lines:
+            print(f"  {line}")
+        sys.stdout.flush()
+        case.pop("result", None)
+        case.pop("raises", None)
+        case.update(got)
+    if changed:
+        path.write_text(_dump(fixture))
+    print(f"{changed} of {len(cases)} cases re-recorded in {path}")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    p = sub.add_parser("check", help="compare this build with the fixture")
-    p.add_argument("--fixture", default=str(FIXTURE))
-    p.add_argument("--fast", action="store_true", help="the fast subset only")
-    p.add_argument("--case", nargs="+", help="these case ids only")
-    p.add_argument("-n", "--processes", type=int, default=1)
-    p.set_defaults(func=check)
+    for name, func, text in (
+        ("check", check, "compare this build with the fixture"),
+        ("update", update, "re-record the cases that differ, in place"),
+    ):
+        p = sub.add_parser(name, help=text)
+        p.add_argument("--fixture", default=str(FIXTURE))
+        p.add_argument("--fast", action="store_true", help="the fast subset only")
+        p.add_argument("--case", nargs="+", help="these case ids only")
+        p.add_argument("-n", "--processes", type=int, default=1)
+        p.set_defaults(func=func)
     p = sub.add_parser("record", help="record the fixture from this build")
     p.add_argument("--records", default=str(RECORDS))
     p.add_argument("--out", default=str(FIXTURE))

@@ -446,61 +446,116 @@ TEST_CASE("the census by level sums to the census by scale") {
     }
 }
 
-TEST_CASE("the census gain equals the replay's per-level census") {
+TEST_CASE("without a split the census gain's scan equals the replay's per-level census") {
     // census.py of the fine-level replay at the catalysis price: (epsilon, cov, a,
-    // scov, y, best) -> scan and split saving
+    // best) -> scan saving
     struct Case {
         double eps;
-        int cov, a, scov, y;
+        int cov, a;
         int64_t best;
-        double scan, split;
+        double scan;
     };
     const std::vector<Case> cases{
-        {1e-4, 36, 40, -1, 44, 27, 0.42958256312432297, -1.0},
-        {1e-6, 56, 60, 58, 62, 41, 0.19632830859702574, 0.06766655159536616},
-        {1e-8, 76, 79, -1, 82, 54, 0.03775769332367615, 0.021373137480851373},
+        {1e-4, 36, 40, 27, 0.42958256312432297},
+        {1e-8, 76, 79, 54, 0.03775769332367615},
     };
     const GateSet g = GateSet::sqrt_t();
     for (const Case& t : cases) {
         INFO(t.eps);
         const CensusGain gain(g, {1, 3}, t.eps, SearchRegion(t.eps, g).first_scale());
-        CHECK(close(gain.scan(t.cov, t.a, t.scov, t.best), t.scan, 1e-9));
-        if (t.split >= 0.0)
-            CHECK(close(gain.split(std::max(t.cov, t.scov), t.y, t.best), t.split, 1e-9));
+        CHECK(close(gain.scan(t.cov, t.a, {}, t.best), t.scan, 1e-9));
     }
+}
+
+TEST_CASE("the census gain prices each prefix by the gates it reaches first") {
+    // A model built from the prefixes' words (cost ball grown in Python, children
+    // found by word): at 1e-6, the scan at level 60 with best cost 43, each prefix
+    // of the radius-6 scale-2 set walked from 60 to 66.
+    const GateSet g = GateSet::sqrt_t();
+    const double eps = 1e-6;
+    const PrefixSet set = collect_prefixes(*recorded_prefix_ball("sqrtT"), {2}, std::nullopt)[0];
+    REQUIRE(set.prefixes.size() == 128);
+    const CensusGain gain(g, {1, 3}, eps, SearchRegion(eps, g).first_scale(), &set);
+    const std::vector<std::pair<double, int>> want{
+        {0.04957893939051, 8},   {0.023357889697294, 8},  {0.019180543106759, 16},
+        {0.013814884546511, 16}, {0.008989246984042, 16}, {0.005645040275914, 16},
+        {0.004825602036229, 32}, {0.001677496643311, 8},  {0.0, 8}};
+    std::vector<PrefixWalk> every;
+    std::vector<int> classes;
+    std::vector<std::pair<double, int>> got;
+    for (size_t p = 0; p < set.prefixes.size(); ++p) {
+        const double v = gain.split(60, {{p, 60, 66}}, 43);
+        const auto same = [&](const std::pair<double, int>& w) { return close(w.first, v, 1e-9); };
+        const auto it = std::find_if(got.begin(), got.end(), same);
+        if (it == got.end())
+            got.emplace_back(v, 1);
+        else
+            ++it->second;
+        every.push_back({p, 60, 66});
+        classes.push_back(gain.prefix_class(p));
+    }
+    std::sort(got.rbegin(), got.rend());
+    REQUIRE(got.size() == want.size());
+    for (size_t i = 0; i < want.size(); ++i) {
+        CHECK(close(got[i].first, want[i].first, 1e-9, 1e-15));
+        CHECK(got[i].second == want[i].second);
+    }
+    std::sort(classes.begin(), classes.end());
+    CHECK(std::unique(classes.begin(), classes.end()) - classes.begin() == 10);
+    // together they save less than the sum of their savings
+    CHECK(close(gain.split(60, every, 43), 1.1573630689145498, 1e-9));
+    // the scan of level 61 saves what no prefix reached
+    CHECK(close(gain.scan(60, 61, std::vector<int>(128, 60), 43), 0.33311420172232875, 1e-9));
+    CHECK(close(gain.scan(60, 61, std::vector<int>(128, 66), 43), 0.0252741403236901, 1e-9));
+    CHECK(gain.batch(128) == kPrefixBatch);
 }
 
 TEST_CASE("a level gain grows with the levels and shrinks with the split's coverage") {
     const GateSet g = GateSet::sqrt_t();
     const double eps = 1e-6;
-    const CensusGain census(g, {1, 3}, eps, SearchRegion(eps, g).first_scale());
-    const DecayGain decay(56);
+    const PrefixSet set = collect_prefixes(*recorded_prefix_ball("sqrtT"), {2}, std::nullopt)[0];
+    const size_t n = set.prefixes.size();
+    const CensusGain census(g, {1, 3}, eps, SearchRegion(eps, g).first_scale(), &set);
+    const DecayGain decay(56, n);
+    // every prefix from composite level `from` to `to`
+    const auto all = [&](int from, int to) {
+        std::vector<PrefixWalk> walks;
+        for (size_t p = 0; p < n; ++p) walks.push_back({p, from, to});
+        return walks;
+    };
+    const std::vector<int> none(n, 56), deep(n, 64);
     for (const LevelGain* gain : std::initializer_list<const LevelGain*>{&census, &decay}) {
         const int64_t best = 41;
-        CHECK(gain->scan(56, 56, -1, best) == 0.0);
-        CHECK(gain->split(58, 58, best) == 0.0);
+        CHECK(gain->scan(56, 56, none, best) == 0.0);
+        CHECK(gain->split(56, all(58, 58), best) == 0.0);
         double before = 0.0;
         for (int a = 57; a < 70; ++a) {
-            const double s = gain->scan(56, a, -1, best);
+            const double s = gain->scan(56, a, none, best);
             CHECK(s > before);
             CHECK(s < static_cast<double>(best));
-            CHECK(gain->scan(56, a, 60, best) < s);
-            CHECK(gain->split(56, a, best) < s);
+            CHECK(gain->scan(56, a, deep, best) < s);
+            CHECK(gain->split(56, all(56, a), best) < s);
             before = s;
         }
         // a cheaper answer leaves less to save
-        CHECK(gain->scan(56, 62, -1, best - 5) < gain->scan(56, 62, -1, best));
+        CHECK(gain->scan(56, 62, none, best - 5) < gain->scan(56, 62, none, best));
     }
 }
 
 TEST_CASE("the decay gain saves a share of the best cost that decays per level") {
-    const DecayGain gain(10);
-    CHECK(gain.scan(4, 10, -1, 100) == 0.0);
-    CHECK(close(gain.scan(10, 11, -1, 100), 100 * kDecayFirstSaving));
-    CHECK(close(gain.scan(11, 12, -1, 100), 100 * kDecayFirstSaving * kDecayPerLevel));
-    CHECK(close(gain.split(10, 11, 100), 100 * kDecaySplitCoverage * kDecayFirstSaving));
+    const DecayGain gain(10, 4);
+    const std::vector<int> none(4, 10), next(4, 11);
+    CHECK(gain.scan(4, 10, none, 100) == 0.0);
+    CHECK(close(gain.scan(10, 11, none, 100), 100 * kDecayFirstSaving));
+    CHECK(close(gain.scan(11, 12, none, 100), 100 * kDecayFirstSaving * kDecayPerLevel));
+    std::vector<PrefixWalk> all;
+    for (size_t p = 0; p < 4; ++p) all.push_back({p, 10, 11});
+    CHECK(close(gain.split(10, all, 100), 100 * kDecaySplitCoverage * kDecayFirstSaving));
+    // one prefix saves its share of the level; the split walks them all together
+    CHECK(close(gain.split(10, {{2, 10, 11}}, 100), 25 * kDecaySplitCoverage * kDecayFirstSaving));
+    CHECK(gain.batch(4) == 4);
     // the split's coverage of the scan's next level is deducted
-    CHECK(close(gain.scan(10, 11, 11, 100), 100 * (1 - kDecaySplitCoverage) * kDecayFirstSaving));
+    CHECK(close(gain.scan(10, 11, next, 100), 100 * (1 - kDecaySplitCoverage) * kDecayFirstSaving));
     CHECK(gain.rates(6.0).scan == 3.0);
     CHECK(gain.rates(6.0).split == 1.0);
 }
@@ -511,10 +566,11 @@ TEST_CASE("targets outside the census get the decay gain") {
     const auto is_census = [](const std::unique_ptr<LevelGain>& gain) {
         return dynamic_cast<const CensusGain*>(gain.get()) != nullptr;
     };
-    CHECK(is_census(level_gain(g, {1, 3}, 1e-4, calibration_targets()[58], start, 30)));
-    CHECK_FALSE(is_census(level_gain(g, {1, 3}, 1e-4, unitary_of(rotation(0.3, 'z')), start, 30)));
+    CHECK(is_census(level_gain(g, {1, 3}, 1e-4, calibration_targets()[58], start, 30, nullptr)));
     CHECK_FALSE(
-        is_census(level_gain(g, {1, 1000000000}, 1e-4, calibration_targets()[58], start, 30)));
+        is_census(level_gain(g, {1, 3}, 1e-4, unitary_of(rotation(0.3, 'z')), start, 30, nullptr)));
+    CHECK_FALSE(is_census(
+        level_gain(g, {1, 1000000000}, 1e-4, calibration_targets()[58], start, 30, nullptr)));
 }
 
 TEST_CASE("the walk-time curve passes through its knots and grows with the points") {

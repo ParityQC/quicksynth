@@ -14,8 +14,13 @@
 #include "quicksynth/enumerate_lattice/search_region.hpp"
 
 #include <algorithm>
+#include <map>
 #include <memory>
+#include <numeric>
+#include <optional>
+#include <tuple>
 #include <utility>
+#include <vector>
 
 namespace quicksynth {
 
@@ -32,10 +37,17 @@ class Setups {
         return fresh + kDerivedSetupSeconds * (sub - std::max(finest_, 0));
     }
     void built(int sub) { finest_ = std::max(finest_, sub); }
+    int finest() const { return finest_; }
 
   private:
     int finest_ = -1;
 };
+
+std::vector<size_t> every_prefix(const PrefixSplit::Prefixed& p) {
+    std::vector<size_t> out(p.set->prefixes.size());
+    std::iota(out.begin(), out.end(), size_t{0});
+    return out;
+}
 
 }  // namespace
 
@@ -64,11 +76,12 @@ LevelSearch::Result LevelSearch::run(const Unitary& V, const ScaleScan::Progress
             count_other(out.log.back(), split_best);
         }
     };
-    const auto walk_split = [&](int l) {
-        out.log.push_back(split_->walk_level(*prefixed, l, split_best));
-        split_setups.built(out.log.back().sub);
+    // Walks composite level l on `prefixes`; returns the remainder's sub.
+    const auto walk_split = [&](int l, const std::vector<size_t>& prefixes) {
+        out.log.push_back(split_->walk_level(*prefixed, l, prefixes, split_best));
         count_other(out.log.back(), scan.best);
         split_ran = true;
+        return out.log.back().sub;
     };
     // The cheaper answer (the scan's on a tie) and the summary of what was walked.
     const auto finish = [&] {
@@ -114,7 +127,7 @@ LevelSearch::Result LevelSearch::run(const Unitary& V, const ScaleScan::Progress
             if (!at) continue;
             if (at->walks * at->est > split_budget) break;
             if (settings_.skip_setup_levels && setup_bound(y, *at)) continue;
-            walk_split(y);
+            split_setups.built(walk_split(y, every_prefix(*prefixed)));
             scov = y;
             if (split_best) {
                 answer_level = y;
@@ -124,43 +137,36 @@ LevelSearch::Result LevelSearch::run(const Unitary& V, const ScaleScan::Progress
     }
     if (!answer_level) return finish();
 
-    // After it: the best-value candidate level while one is worth its time.
+    // After it: the scan's most valuable level or the split's most valuable batch
+    // of prefix walks, while one is worth its time.
     const bool split_after = split_ && (!scan.best || enumerator.epsilon() < settings_.split_below);
     for (size_t set = 0; split_after && !prefixed && set < split_->fixed_sets(); ++set) {
         PrefixSplit::Prefixed p = split_->prefixed(V, set);
         if (!p.problems.empty()) prefixed = std::move(p);
     }
-    const std::unique_ptr<LevelGain> gain = level_gain(gateset, price_, enumerator.epsilon(), V,
-                                                       enumerator.first_scale(), *answer_level);
+    const PrefixSet* prefix_set = split_after && prefixed ? prefixed->set : nullptr;
+    const std::unique_ptr<LevelGain> gain =
+        level_gain(gateset, price_, enumerator.epsilon(), V, enumerator.first_scale(),
+                   *answer_level, prefix_set);
     const LevelRates rates = gain->rates(settings_.rate);
+    const size_t prefixes = prefix_set ? prefix_set->prefixes.size() : 0;
+    std::vector<int> depth(prefixes, scov);  // each prefix's last composite level
+    std::vector<Setups> prefix_setups(prefixes, split_setups);
     const auto best_cost = [&] {
         if (!split_best) return scan.best->cost.value;
         if (!scan.best) return split_best->cost.value;
         return std::min(scan.best->cost.value, split_best->cost.value);
     };
-    for (;;) {
-        const int64_t best = best_cost();
-        struct Pick {
-            bool split;
-            int level;
-            double est;
-        };
-        std::optional<Pick> pick;
-        double value = 0.0;
-        for (int a = cov + 1;; ++a) {
-            const auto [K, sub] = level_at(a, L);
-            if (scan_.scale_lower_bound(K) >= static_cast<double>(best)) break;
-            const double est = enumerator.estimate_points(K, sub);
-            if (est > scan_budget) break;
-            const double seconds = det_classes * (walk_seconds(est) + scan_setups.seconds(sub));
-            const double v = gain->scan(cov, a, scov, best) - rates.scan * seconds;
-            if (v > value) {
-                value = v;
-                pick = Pick{false, a, est};
-            }
-        }
-        const int lo = std::max(cov, scov);
-        for (int y = lo + 1; split_after && prefixed && y <= lo + L * kSplitScaleGuard; ++y) {
+    struct Walk {
+        size_t prefix;
+        int level;
+        double seconds, value;
+    };
+    // Prefix p's composite level of largest positive value past both searches.
+    const auto most_valuable_walk = [&](size_t p, int64_t best) {
+        std::optional<Walk> pick;
+        const int lo = std::max(cov, depth[p]);
+        for (int y = lo + 1; y <= lo + L * kSplitScaleGuard; ++y) {
             const std::optional<PrefixSplit::Level> at = split_->level(*prefixed, y);
             if (!at) continue;
             if (at->walks * at->est > split_budget) break;
@@ -168,20 +174,75 @@ LevelSearch::Result LevelSearch::run(const Unitary& V, const ScaleScan::Progress
                 split_scale_bound(gateset, price_, level_at(y, L).K);
             if (bound && *bound >= static_cast<double>(best)) break;
             const double seconds =
-                at->walks * (walk_seconds(at->est) + split_setups.seconds(at->remainder.sub));
-            const double v = gain->split(lo, y, best) - rates.split * seconds;
-            if (v > value) {
-                value = v;
-                pick = Pick{true, y, at->est};
+                det_classes * (walk_seconds(at->est) + prefix_setups[p].seconds(at->remainder.sub));
+            const double v = gain->split(cov, {{p, depth[p], y}}, best) - rates.split * seconds;
+            if (v > (pick ? pick->value : 0.0)) pick = Walk{p, y, seconds, v};
+        }
+        return pick;
+    };
+    for (;;) {
+        const int64_t best = best_cost();
+        std::optional<int> scan_level;
+        double scan_est = 0.0, scan_value = 0.0;
+        for (int a = cov + 1;; ++a) {
+            const auto [K, sub] = level_at(a, L);
+            if (scan_.scale_lower_bound(K) >= static_cast<double>(best)) break;
+            const double est = enumerator.estimate_points(K, sub);
+            if (est > scan_budget) break;
+            const double seconds = det_classes * (walk_seconds(est) + scan_setups.seconds(sub));
+            const double v = gain->scan(cov, a, depth, best) - rates.scan * seconds;
+            if (v > scan_value) {
+                scan_value = v;
+                scan_level = a;
+                scan_est = est;
             }
         }
-        if (!pick) break;
-        if (pick->split) {
-            walk_split(pick->level);
-            scov = pick->level;
-        } else {
-            walk_scan(pick->level, pick->est);
-            cov = pick->level;
+        // Each prefix's most valuable walk, priced once per class and state; the
+        // batch of the most valuable, or the first alone where together they are not
+        // worth their time.
+        std::map<std::tuple<int, int, int>, std::optional<Walk>> priced;
+        std::vector<Walk> batch;
+        for (size_t p = 0; p < prefixes; ++p) {
+            const auto key =
+                std::make_tuple(gain->prefix_class(p), depth[p], prefix_setups[p].finest());
+            auto it = priced.find(key);
+            if (it == priced.end()) it = priced.emplace(key, most_valuable_walk(p, best)).first;
+            if (it->second)
+                batch.push_back({p, it->second->level, it->second->seconds, it->second->value});
+        }
+        std::stable_sort(batch.begin(), batch.end(),
+                         [](const Walk& a, const Walk& b) { return a.value > b.value; });
+        batch.resize(std::min(batch.size(), gain->batch(prefixes)));
+        double split_value = 0.0;
+        if (!batch.empty()) {
+            std::vector<PrefixWalk> walks;
+            double seconds = 0.0;
+            for (const Walk& w : batch) {
+                walks.push_back({w.prefix, depth[w.prefix], w.level});
+                seconds += w.seconds;
+            }
+            split_value = gain->split(cov, walks, best) - rates.split * seconds;
+            if (!(split_value > 0.0)) {
+                batch.resize(1);
+                split_value = batch.front().value;
+            }
+        }
+        // ties go to the scan
+        if (scan_level && scan_value >= split_value) {
+            walk_scan(*scan_level, scan_est);
+            cov = *scan_level;
+            continue;
+        }
+        if (batch.empty()) break;
+        std::map<int, std::vector<size_t>> by_level;
+        for (const Walk& w : batch) by_level[w.level].push_back(w.prefix);
+        for (auto& [level, walked] : by_level) {
+            std::sort(walked.begin(), walked.end());
+            const int sub = walk_split(level, walked);
+            for (const size_t p : walked) {
+                depth[p] = level;
+                prefix_setups[p].built(sub);
+            }
         }
     }
     return finish();

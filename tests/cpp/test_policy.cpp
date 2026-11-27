@@ -118,7 +118,7 @@ TEST_CASE("fast runs LevelSearch at its own rate in every stage") {
         s.rate = rate;
         return QuickSynth(s).first_stage(1e-6, false);
     };
-    CHECK(kFineFastRate == 6.0);
+    CHECK(kFineFastRate == 24.0);
     for (const GateSet& g : {GateSet::sqrt_t(), GateSet::clifford_t()}) {
         INFO(g.name());
         CHECK(first(g, std::nullopt).scan.rate == kFastRate);
@@ -151,7 +151,7 @@ TEST_CASE("finer levels are on unless fine_levels is false") {
         return QuickSynth(s).first_stage(1e-6, false);
     };
     const GateSet sqrt_t = GateSet::sqrt_t();
-    CHECK(kFineDefaultRate == 0.2);
+    CHECK(kFineDefaultRate == 0.3);
     const ScanThenSplit::Settings fine_default = fine(sqrt_t, false, std::nullopt);
     CHECK(fine_default.scan.fine_levels);
     CHECK(fine_default.scan.rate == kDefaultRate);

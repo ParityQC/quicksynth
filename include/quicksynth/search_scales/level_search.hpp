@@ -17,14 +17,16 @@
 // take longer than its walks, since the next level holds its elements, unless
 // the next level is within a factor kSkipHeadroom of the point budget.
 //
-// After the first answer each round prices every candidate level: scan levels
-// past the scan's last (cov), and split levels past both searches' last
-// (scov, cov). A candidate's value is its expected saving (LevelGain) minus a
-// rate times its predicted seconds: walk_seconds per walk plus the LLL set-ups
-// of subs not yet built. The round walks the candidate of largest positive
-// value; the search stops when none is positive. Candidates stop at the point
-// budgets and where a scale bound reaches the best cost. Split candidates
-// after a scan answer only below split_below.
+// After the first answer each round prices the scan's levels past its last (cov)
+// and, for each of the split's prefixes, the composite levels past its own last
+// and cov. A candidate's value is its expected saving (LevelGain) minus a rate
+// times its predicted seconds: walk_seconds per walk plus the LLL set-ups of subs
+// not yet built. The split's candidate is a batch: the LevelGain::batch prefixes
+// of largest positive value, each to its most valuable level, priced together.
+// The round walks the scan's level or the batch, whichever is worth more (ties
+// to the scan); the search stops when neither is worth its time. Candidates stop
+// at the point budgets and where a scale bound reaches the best cost. Split
+// candidates after a scan answer only below split_below.
 //
 // Every answer is a walked element, checked against epsilon.
 #pragma once

@@ -212,7 +212,7 @@ core's.
 | `prefix_scale_for`, `split_budget_for` | 2, 3e7; below 1e-7: 3 (Clifford+T 4, 6 below 1e-8), 3e8 | stage 1's prefix scale and split budget | `search_scales/scan_then_split.cpp` |
 | `kDeeperLastBudget` | 1.5e10 | last split budget, Clifford+T below 1e-8 | `policy.hpp` |
 | `kDefaultRate`, `kFastRate` | 0.3, 3 per second | the rate rule, default and `fast` | `search_scales/stopping_rule.hpp` |
-| `kFineDefaultRate`, `kFineFastRate` | 0.2, 6 per second | LevelSearch's rate, default and `fast` | `search_scales/stopping_rule.hpp` |
+| `kFineDefaultRate`, `kFineFastRate` | 0.3, 24 per second | LevelSearch's rate, default and `fast` | `search_scales/stopping_rule.hpp` |
 | `kExtraScales`, `kPointBudget` | 2, 3e6 | scales past the first answer, points per scan walk | `search_scales/scan.hpp` |
 | `kSplitPointBudget` | 3e7 | the split's budget for ε >= 1e-7 | `search_scales/split.hpp` |
 | `rotation_tolerance` | 1e-2 | stage 0's off-axis allowance, in units of ε | `synthesise.hpp` (`Settings`) |
@@ -301,9 +301,13 @@ first answer. Below `split_below` the split walks `kFixedSplitScales` scales.
 
 On Clifford+√T the fixed rule searches finer levels by default, four per scale
 (`fine_levels`). LevelSearch (`level_search.hpp`) interleaves the scan and the
-split level by level. After the first answer, each round values every
-candidate level at its expected saving minus the rate times its predicted time.
-It walks the best and stops when none has positive value.
+split level by level. After the first answer, each round values the scan's next
+levels and, for each of the split's prefixes, the composite levels past its own
+last, at the expected saving minus the rate times the predicted time. A prefix
+saves the gates it reaches first: those whose normal form starts with it and
+with no longer prefix of the set. The round walks the scan's best level or the
+split's batch of the `kPrefixBatch` most valuable prefixes, each to its own
+level, whichever is worth more, and stops when neither has positive value.
 
 The model rule walks whole scales. Before each it asks whether the expected
 saving, from the census of normal forms, is worth `rate` times the scale's time
