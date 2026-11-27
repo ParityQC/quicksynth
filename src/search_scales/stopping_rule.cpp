@@ -392,8 +392,8 @@ CensusGain::CensusGain(const GateSet& gateset, const Price& price, double epsilo
     std::map<std::tuple<int64_t, int, bool, bool>, int> shapes;
     for (const PrefixForm& f : split->forms) {
         const auto weight = [&](int type) { return syllable_exponent(sqrt_t, type); };
-        const int shift = f.n_t * weight(0) + f.n_q * weight(1) -
-                          (f.bare_first ? weight(*f.bare_first) : 0);
+        const int shift =
+            f.n_t * weight(0) + f.n_q * weight(1) - (f.bare_first ? weight(*f.bare_first) : 0);
         const std::array<bool, 2> first{!f.extended[0], !f.extended[1]};
         const auto key = std::make_tuple(f.cost, shift, first[0], first[1]);
         const int shape = shapes.emplace(key, static_cast<int>(shapes.size())).first->second;
@@ -483,8 +483,7 @@ std::unique_ptr<LevelGain> level_gain(const GateSet& gateset, const Price& price
                                       const Unitary& V, int start, int first_answer_level,
                                       const PrefixSet* split) {
     if (stopping_fallback(V) || !has_stopping_model(gateset, price, start))
-        return std::make_unique<DecayGain>(first_answer_level,
-                                           split ? split->prefixes.size() : 0);
+        return std::make_unique<DecayGain>(first_answer_level, split ? split->prefixes.size() : 0);
     return std::make_unique<CensusGain>(gateset, price, epsilon, start, split);
 }
 

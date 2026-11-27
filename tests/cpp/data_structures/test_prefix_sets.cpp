@@ -90,7 +90,7 @@ TEST_CASE("denominator zero means monomial and not Clifford") {
     }
 }
 
-TEST_CASE("a prefix's form holds its cost, its syllables and its children in the set") {
+TEST_CASE("a prefix's form holds its cost and syllables and which children the set holds") {
     // radius-6 scale-2 set at (1, 3): the 8 prefixes of level 6 ending in T of cost
     // 2-3 have children P C T and P C Q in the set, the 8 of cost 5 only P C T
     const auto ball = recorded_prefix_ball("sqrtT");

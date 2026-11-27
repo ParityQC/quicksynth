@@ -477,9 +477,9 @@ TEST_CASE("the census gain prices each prefix by the gates it reaches first") {
     REQUIRE(set.prefixes.size() == 128);
     const CensusGain gain(g, {1, 3}, eps, SearchRegion(eps, g).first_scale(), &set);
     const std::vector<std::pair<double, int>> want{
-        {0.04957893939051, 8},  {0.023357889697294, 8}, {0.019180543106759, 16},
+        {0.04957893939051, 8},   {0.023357889697294, 8},  {0.019180543106759, 16},
         {0.013814884546511, 16}, {0.008989246984042, 16}, {0.005645040275914, 16},
-        {0.004825602036229, 32}, {0.001677496643311, 8}, {0.0, 8}};
+        {0.004825602036229, 32}, {0.001677496643311, 8},  {0.0, 8}};
     std::vector<PrefixWalk> every;
     std::vector<int> classes;
     std::vector<std::pair<double, int>> got;
@@ -552,8 +552,7 @@ TEST_CASE("the decay gain saves a share of the best cost that decays per level")
     for (size_t p = 0; p < 4; ++p) all.push_back({p, 10, 11});
     CHECK(close(gain.split(10, all, 100), 100 * kDecaySplitCoverage * kDecayFirstSaving));
     // one prefix saves its share of the level; the split walks them all together
-    CHECK(close(gain.split(10, {{2, 10, 11}}, 100),
-                25 * kDecaySplitCoverage * kDecayFirstSaving));
+    CHECK(close(gain.split(10, {{2, 10, 11}}, 100), 25 * kDecaySplitCoverage * kDecayFirstSaving));
     CHECK(gain.batch(4) == 4);
     // the split's coverage of the scan's next level is deducted
     CHECK(close(gain.scan(10, 11, next, 100), 100 * (1 - kDecaySplitCoverage) * kDecayFirstSaving));
@@ -568,8 +567,8 @@ TEST_CASE("targets outside the census get the decay gain") {
         return dynamic_cast<const CensusGain*>(gain.get()) != nullptr;
     };
     CHECK(is_census(level_gain(g, {1, 3}, 1e-4, calibration_targets()[58], start, 30, nullptr)));
-    CHECK_FALSE(is_census(
-        level_gain(g, {1, 3}, 1e-4, unitary_of(rotation(0.3, 'z')), start, 30, nullptr)));
+    CHECK_FALSE(
+        is_census(level_gain(g, {1, 3}, 1e-4, unitary_of(rotation(0.3, 'z')), start, 30, nullptr)));
     CHECK_FALSE(is_census(
         level_gain(g, {1, 1000000000}, 1e-4, calibration_targets()[58], start, 30, nullptr)));
 }

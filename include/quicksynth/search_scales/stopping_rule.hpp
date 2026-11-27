@@ -306,9 +306,9 @@ class CensusGain final : public LevelGain {
     using Counts = std::vector<std::vector<double>>;  // [l][c], cumulative
     struct Prefix {
         int64_t cost;
-        int shift;                   // W(P) = level(U) - level(R)
-        std::array<bool, 2> first;   // R's first syllable types it reaches first
-        int shape;                   // prefix_class
+        int shift;                  // W(P) = level(U) - level(R)
+        std::array<bool, 2> first;  // R's first syllable types it reaches first
+        int shape;                  // prefix_class
     };
     // mu x gates of levels (lo, hi] and cost <= c
     double intensity(int lo, int hi, size_t c) const;

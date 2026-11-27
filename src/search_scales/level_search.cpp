@@ -173,8 +173,8 @@ LevelSearch::Result LevelSearch::run(const Unitary& V, const ScaleScan::Progress
             const std::optional<double> bound =
                 split_scale_bound(gateset, price_, level_at(y, L).K);
             if (bound && *bound >= static_cast<double>(best)) break;
-            const double seconds = det_classes * (walk_seconds(at->est) +
-                                                  prefix_setups[p].seconds(at->remainder.sub));
+            const double seconds =
+                det_classes * (walk_seconds(at->est) + prefix_setups[p].seconds(at->remainder.sub));
             const double v = gain->split(cov, {{p, depth[p], y}}, best) - rates.split * seconds;
             if (v > (pick ? pick->value : 0.0)) pick = Walk{p, y, seconds, v};
         }
@@ -207,8 +207,8 @@ LevelSearch::Result LevelSearch::run(const Unitary& V, const ScaleScan::Progress
                 std::make_tuple(gain->prefix_class(p), depth[p], prefix_setups[p].finest());
             auto it = priced.find(key);
             if (it == priced.end()) it = priced.emplace(key, most_valuable_walk(p, best)).first;
-            if (it->second) batch.push_back({p, it->second->level, it->second->seconds,
-                                             it->second->value});
+            if (it->second)
+                batch.push_back({p, it->second->level, it->second->seconds, it->second->value});
         }
         std::stable_sort(batch.begin(), batch.end(),
                          [](const Walk& a, const Walk& b) { return a.value > b.value; });
