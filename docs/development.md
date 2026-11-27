@@ -144,7 +144,7 @@ calibration targets.
 | `test_counting.py` | the paper's counting in `counting.py` |
 | `test_paper.py` | the paper's lower-bound statements, re-derived independently |
 | `test_oracles.py` | the reference helpers of `oracles.py` |
-| `test_fingerprint.py` | answers against `fingerprint.json` ([The fingerprint](#the-fingerprint)) |
+| `test_fingerprint.py` | answers against `fingerprint.json` ([The fingerprint](#the-fingerprint)), and `tools/fingerprint.py update` |
 | `test_layers.py` | the source layout, the include rule, CMake's source lists |
 | `test_license.py` | the MIT banner in every tracked source file |
 
@@ -272,8 +272,15 @@ evaluation and a few chosen targets
 uv run python tools/fingerprint.py check -n 6               # every case, on six processes
 uv run python tools/fingerprint.py check --fast             # the fast subset
 uv run python tools/fingerprint.py check --case c1t-1e-08-05
+uv run python tools/fingerprint.py update -n 6              # re-record the cases that differ, in place
 uv run python tools/fingerprint.py record -n 6              # needs the benchmark records
 ```
+
+A change meant to alter answers re-records the cases it changes with `update`,
+on Linux x86-64, and adds a row to the
+[re-recordings](../tests/fixtures/README.md#re-recordings). `update` prints each
+difference as `check` does and keeps the other cases, the `fast` marks and
+`meta`, whose commit is that of the last full `record`.
 
 A case is one call. It stores ε, the gate set, every setting that differs
 from the default, and the target as the nearest unitary the core receives, in
