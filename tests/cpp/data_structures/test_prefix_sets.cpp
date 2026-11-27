@@ -90,6 +90,38 @@ TEST_CASE("denominator zero means monomial and not Clifford") {
     }
 }
 
+TEST_CASE("a prefix's form holds its cost, its syllables and its children in the set") {
+    // radius-6 scale-2 set at (1, 3): the 8 prefixes of level 6 ending in T of cost
+    // 2-3 have children P C T and P C Q in the set, the 8 of cost 5 only P C T
+    const auto ball = recorded_prefix_ball("sqrtT");
+    const PrefixSet set = collect_prefixes(*ball, {2}, std::nullopt)[0];
+    REQUIRE(set.forms.size() == set.prefixes.size());
+    const Pricer pricer = Pricer::for_gateset(GateSet::sqrt_t(), {1, 3});
+    int both = 0, t_only = 0;
+    for (size_t i = 0; i < set.forms.size(); ++i) {
+        const PrefixForm& f = set.forms[i];
+        CHECK(f.cost == pricer.price(set.prefixes[i]).value);
+        CHECK(f.cost == f.n_t + 3 * f.n_q);
+        if (f.extended[0] && f.extended[1]) {
+            ++both;
+            CHECK(f.cost <= 3);
+        }
+        if (f.extended[0] && !f.extended[1]) {
+            ++t_only;
+            CHECK(f.cost == 5);
+        }
+        CHECK_FALSE((!f.extended[0] && f.extended[1]));
+    }
+    CHECK(both == 8);
+    CHECK(t_only == 8);
+    // T S H T: a bare first syllable; S H T S H T: none
+    const PrefixSet one = collect_prefixes(*ball, {1}, std::nullopt)[0];
+    int bare = 0;
+    for (const PrefixForm& f : one.forms) bare += f.bare_first.has_value();
+    CHECK(bare > 0);
+    CHECK(bare < static_cast<int>(one.forms.size()));
+}
+
 TEST_CASE("the scales of a split are its own and then every shallower one") {
     CHECK(prefix_scales(3) == std::vector<int>{3, 2, 1});
     CHECK(prefix_scales(1) == std::vector<int>{1});

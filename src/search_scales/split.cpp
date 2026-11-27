@@ -15,9 +15,11 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <limits>
 #include <map>
 #include <memory>
+#include <numeric>
 #include <set>
 #include <utility>
 
@@ -31,6 +33,13 @@ int64_t leaf_cap(double points, double walks) {
     const double share = points / walks;
     if (!(share < 1e17)) return 0;
     return std::max<int64_t>(1, static_cast<int64_t>(share));
+}
+
+// Indices 0..n-1: the n cheapest prefixes of a set.
+std::vector<size_t> first_prefixes(size_t n) {
+    std::vector<size_t> out(n);
+    std::iota(out.begin(), out.end(), size_t{0});
+    return out;
 }
 
 // Copies a set into memory allocated with the split, for locality.
@@ -153,7 +162,7 @@ PrefixSplit::Result PrefixSplit::run_one(const Unitary& V, const PrefixSet& set,
         const size_t count = walked * static_cast<size_t>(det_classes);
         const double composite_start = steady_seconds();
         const Composite c = walk_composite(set, problems, target, remainder.K + k, walk_budget,
-                                           out.best, count, remainder.sub);
+                                           out.best, first_prefixes(walked), remainder.sub);
         const double spent = steady_seconds() - composite_start;
         const std::optional<int64_t> best =
             out.best ? std::optional<int64_t>(out.best->cost.value) : std::nullopt;
@@ -181,17 +190,20 @@ std::optional<PrefixSplit::Level> PrefixSplit::level(const Prefixed& p, int l) c
                  enumerator_.estimate_points(remainder.K, remainder.sub)};
 }
 
-SearchLog PrefixSplit::walk_level(const Prefixed& p, int l, std::optional<Enumerator::Hit>& best) {
+SearchLog PrefixSplit::walk_level(const Prefixed& p, int l, const std::vector<size_t>& prefixes,
+                                  std::optional<Enumerator::Hit>& best) {
     const Level at = level(p, l).value();
     const int k = p.set->scale;
     const double start = steady_seconds();
     const Composite c = walk_composite(*p.set, p.problems, p.target, at.remainder.K + k,
                                        leaf_cap(settings_.point_budget, std::max(at.walks, 1.0)),
-                                       best, p.problems.size(), at.remainder.sub);
+                                       best, prefixes, at.remainder.sub);
     const double spent = steady_seconds() - start;
     const std::optional<int64_t> cost =
         best ? std::optional<int64_t>(best->cost.value) : std::nullopt;
-    return composite_log(at.remainder.K + k, k, spent, at.walks * at.est, c.visited, cost,
+    const double walks =
+        static_cast<double>(prefixes.size() * static_cast<size_t>(GateSet::kDeterminantClasses));
+    return composite_log(at.remainder.K + k, k, spent, walks * at.est, c.visited, cost,
                          at.remainder.sub);
 }
 
@@ -210,21 +222,26 @@ PrefixSplit::Composite PrefixSplit::walk_composite(const PrefixSet& set,
                                                    const std::vector<Enumerator::Problem>& problems,
                                                    const Vec4& target, int K, int64_t leaf_cap,
                                                    std::optional<Enumerator::Hit>& best,
-                                                   size_t count, int sub) {
+                                                   const std::vector<size_t>& prefixes, int sub) {
     Composite out;
     const int r = K - set.scale;
-    const std::vector<WalkResult> walks =
-        count < problems.size()
-            ? enumerator_.survivors_batch({problems.begin(), problems.begin() + count}, r, leaf_cap,
-                                          sub)
-            : enumerator_.survivors_batch(problems, r, leaf_cap, sub);
+    const size_t classes = GateSet::kDeterminantClasses;
+    // every prefix: the problems as they are; else those of `prefixes`
+    const bool every = prefixes.size() * classes == problems.size();
+    std::vector<Enumerator::Problem> chosen;
+    if (!every)
+        for (const size_t p : prefixes)
+            chosen.insert(chosen.end(), problems.begin() + static_cast<std::ptrdiff_t>(p * classes),
+                          problems.begin() + static_cast<std::ptrdiff_t>((p + 1) * classes));
+    const std::vector<Enumerator::Problem>& walked = every ? problems : chosen;
+    const std::vector<WalkResult> walks = enumerator_.survivors_batch(walked, r, leaf_cap, sub);
     const size_t n = static_cast<size_t>(enumerator_.gateset().dim());
     for (size_t w = 0; w < walks.size(); ++w) {
         out.visited += walks[w].visited;
         const std::vector<int64_t>& rows = walks[w].coefficients;
-        const size_t p = w / static_cast<size_t>(GateSet::kDeterminantClasses);
+        const size_t p = prefixes[w / classes];
         for (const CyclotomicMatrix& e :
-             enumerator_.matrices(rows.data(), rows.size() / n, r, problems[w].det_class)) {
+             enumerator_.matrices(rows.data(), rows.size() / n, r, walked[w].det_class)) {
             const CyclotomicMatrix composite = compose(set.prefixes[p], e);
             const double distance = chord_distance(matrix_direction(composite), target);
             if (distance > epsilon_) continue;
@@ -311,7 +328,7 @@ PrefixSplit::Result PrefixSplit::run_model(const Unitary& V, const StoppingModel
         const double walks = static_cast<double>(c.problems.size());
         const Composite composite =
             walk_composite(*c.set, c.problems, target, Kc, leaf_cap(settings_.point_budget, walks),
-                           out.best, c.problems.size());
+                           out.best, first_prefixes(c.set->prefixes.size()));
         if (out.best && (!best || out.best->cost.value < *best)) best = out.best->cost.value;
         const double spent = steady_seconds() - composite_start;
         out.log.push_back(composite_log(Kc, k, spent, walks * enumerator_.estimate_points(Kc - k),

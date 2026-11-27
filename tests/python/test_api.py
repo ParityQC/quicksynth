@@ -160,7 +160,7 @@ def test_the_policy_is_read_from_the_core() -> None:
         0.3,
         3.0,
     )
-    assert (P.fine_rate, P.fine_fast_rate) == (0.2, 6.0)
+    assert (P.fine_rate, P.fine_fast_rate) == (0.3, 24.0)
     assert (P.prefix_radius, P.prefix_count) == (6, 600)
     assert (P.rotation_solvable, P.rotation_solvable_fast) == (256, 40)
     assert (P.scan_throughput("sqrt_t"), P.scan_throughput("clifford_t")) == (

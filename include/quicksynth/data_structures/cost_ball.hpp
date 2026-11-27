@@ -32,6 +32,7 @@
 #include <optional>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 namespace quicksynth {
@@ -75,6 +76,17 @@ class CostBall {
     const Level& level(int c) const { return levels_.at(c); }
     size_t size() const;
     std::string word(int cost, int index) const;
+    // A normal-form syllable: its type (0: T, 1: Q or X Q) and whether its
+    // connector lies in K (only a first syllable's can).
+    struct Syllable {
+        int type;
+        bool bare;
+    };
+    // A coset's normal-form syllables, first to last.
+    std::vector<Syllable> syllables(int cost, int index) const;
+    // A coset's parent (cost, index), its normal form less the last syllable; none
+    // for the root.
+    std::optional<std::pair<int, int>> parent(int cost, int index) const;
     M2 numerator(int cost, int index, int& k) const;
     // Number of cosets of denominator scale k, over all levels.
     int64_t scale_count(int k) const;

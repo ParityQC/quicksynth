@@ -21,6 +21,7 @@
 #include <numeric>
 #include <stdexcept>
 #include <tuple>
+#include <utility>
 
 namespace quicksynth {
 
@@ -55,13 +56,16 @@ double sequences(int n, int n_t, int f, int l, const std::vector<double>& row) {
     return r_t >= 0 && r_q >= 0 ? row[static_cast<size_t>(r_q)] : 0.0;
 }
 
+// Delta-adic exponent a syllable of `type` (0: T, 1: Q) adds to a normal form.
+int syllable_exponent(bool sqrt_t, int type) { return sqrt_t ? (type == 0 ? 2 : 3) : 1; }
+
 // Delta-adic exponent l of a normal form a_1 b_1 ... a_n b_n kappa (n >= 1):
 // E = 2 n_T + 3 n_Q (n_T on Clifford+T), minus overlaps for a_1 = 1 and
 // kappa in <S, X>. One syllable with both is monomial.
 int exponent(bool sqrt_t, int n, int n_t, int n_q, int f, int l, bool a1_one, bool kappa_in) {
     if (n == 1 && a1_one && kappa_in) return 0;
     if (sqrt_t) {
-        const auto overlap = [](int type) { return type == 0 ? 2 : 3; };
+        const auto overlap = [](int type) { return syllable_exponent(true, type); };
         return 4 + 2 * n_t + 3 * n_q - (a1_one ? overlap(f) : 0) - (kappa_in ? overlap(l) : 0);
     }
     return 2 + n_t - a1_one - kappa_in;
@@ -86,7 +90,8 @@ std::vector<int> stopping_extra_scales(int prefix_scale) {
     return out;
 }
 
-Census::Census(const GateSet& gateset, const Price& price, int kmax, bool by_level)
+Census::Census(const GateSet& gateset, const Price& price, int kmax, bool by_level,
+               std::optional<int> first_syllable)
     : sqrt_t_(gateset.step == 1),
       t_(t_syllable_cost(gateset, price)),
       q_(sqrt_t_ ? price.q : 0),
@@ -102,8 +107,10 @@ Census::Census(const GateSet& gateset, const Price& price, int kmax, bool by_lev
         if (row < rows_) n_[static_cast<size_t>(row) * width() + static_cast<size_t>(c)] += v;
     };
     // 24 Cliffords: 8 in <S, X> at scale 0, 16 at scale 1
-    add(0, 0, 8);
-    add(by_level ? places : 1, 0, 16);
+    if (!first_syllable) {
+        add(0, 0, 8);
+        add(by_level ? places : 1, 0, 16);
+    }
     const int types = sqrt_t_ ? 2 : 1;
     // Normal forms of cost <= cmax by syllable count n. `row` is Pascal row n - 2
     // up to n_Q = q_max, exact below 2^53.
@@ -123,11 +130,13 @@ Census::Census(const GateSet& gateset, const Price& price, int kmax, bool by_lev
             const int doublings = n - 1 + n_q;
             for (int f = 0; f < types; ++f)
                 for (int l = 0; l < types; ++l) {
+                    if (first_syllable && f != *first_syllable) continue;
                     const double s = sequences(n, n_t, f, l, row);
                     if (s == 0.0) continue;
                     // a_1 = 1 (one way) or SH, HS^-1 (two); kappa in <S, X> (8) or not (16)
                     for (const bool a1_one : {true, false})
                         for (const bool kappa_in : {true, false}) {
+                            if (first_syllable && a1_one) continue;
                             const int e = exponent(sqrt_t_, n, n_t, n_q, f, l, a1_one, kappa_in);
                             const int row = by_level ? e : (e + places - 1) / places;
                             const double ways = s * (a1_one ? 1 : 2) * (kappa_in ? 8 : 16);
@@ -332,16 +341,19 @@ namespace {
 using LevelCounts = std::vector<std::vector<double>>;
 
 // Census by_level to scale `kmax`, cumulative over levels and costs: [l][c] counts
-// the gates of level <= l and cost <= c. Cached (LRU of 8); thread-safe.
+// the gates of level <= l and cost <= c (with `first_syllable`, the remainders that
+// start with a connector and that syllable type). Cached (LRU of 24); thread-safe.
 std::shared_ptr<const LevelCounts> level_counts(const GateSet& gateset, const Price& price,
-                                                int kmax) {
-    using Key = std::tuple<int, int64_t, int64_t, int>;
+                                                int kmax,
+                                                std::optional<int> first_syllable = std::nullopt) {
+    using Key = std::tuple<int, int64_t, int64_t, int, int>;
     static std::mutex mutex;
-    static Lru<Key, std::shared_ptr<const LevelCounts>> cache(8);
-    const Key key{gateset.step, price.t, gateset.step == 1 ? price.q : 1, kmax};
+    static Lru<Key, std::shared_ptr<const LevelCounts>> cache(24);
+    const Key key{gateset.step, price.t, gateset.step == 1 ? price.q : 1, kmax,
+                  first_syllable.value_or(-1)};
     std::lock_guard<std::mutex> lock(mutex);
     if (auto* hit = cache.find(key)) return *hit;
-    const Census census(gateset, price, kmax, true);
+    const Census census(gateset, price, kmax, true, first_syllable);
     const size_t costs = static_cast<size_t>(census.cost_cap()) + 1;
     auto counts = std::make_shared<LevelCounts>(static_cast<size_t>(census.rows()),
                                                 std::vector<double>(costs, 0.0));
@@ -357,19 +369,49 @@ std::shared_ptr<const LevelCounts> level_counts(const GateSet& gateset, const Pr
     return counts;
 }
 
-}  // namespace
-
-CensusGain::CensusGain(const GateSet& gateset, const Price& price, double epsilon, int start)
-    : counts_(level_counts(gateset, price, start + model_span(gateset))),
-      mu_(ball_measure(epsilon)) {}
-
-double CensusGain::intensity(int lo, int hi, size_t c) const {
-    const LevelCounts& counts = *counts_;
-    const int last = static_cast<int>(counts.size()) - 1;
-    hi = std::min(hi, last);
+// Gates of levels (lo, hi] and cost <= c in cumulative `counts`.
+double count_range(const LevelCounts& counts, int lo, int hi, size_t c) {
+    hi = std::min(hi, static_cast<int>(counts.size()) - 1);
     if (lo >= hi) return 0.0;
     const double below = lo >= 0 ? counts[static_cast<size_t>(lo)][c] : 0.0;
-    return mu_ * (counts[static_cast<size_t>(hi)][c] - below);
+    return counts[static_cast<size_t>(hi)][c] - below;
+}
+
+}  // namespace
+
+CensusGain::CensusGain(const GateSet& gateset, const Price& price, double epsilon, int start,
+                       const PrefixSet* split)
+    : counts_(level_counts(gateset, price, start + model_span(gateset))),
+      mu_(ball_measure(epsilon)) {
+    if (!split) return;
+    const int kmax = start + model_span(gateset);
+    for (size_t type = 0; type < 2; ++type)
+        remainders_[type] = level_counts(gateset, price, kmax, static_cast<int>(type));
+    const bool sqrt_t = gateset.step == 1;
+    offset_ = (sqrt_t ? 4 : 2) * split->scale;
+    std::map<std::tuple<int64_t, int, bool, bool>, int> shapes;
+    for (const PrefixForm& f : split->forms) {
+        const auto weight = [&](int type) { return syllable_exponent(sqrt_t, type); };
+        const int shift = f.n_t * weight(0) + f.n_q * weight(1) -
+                          (f.bare_first ? weight(*f.bare_first) : 0);
+        const std::array<bool, 2> first{!f.extended[0], !f.extended[1]};
+        const auto key = std::make_tuple(f.cost, shift, first[0], first[1]);
+        const int shape = shapes.emplace(key, static_cast<int>(shapes.size())).first->second;
+        prefixes_.push_back({f.cost, shift, first, shape});
+    }
+}
+
+double CensusGain::intensity(int lo, int hi, size_t c) const {
+    return mu_ * count_range(*counts_, lo, hi, c);
+}
+
+double CensusGain::reached(const Prefix& p, int lo, int hi, size_t c) const {
+    if (static_cast<int64_t>(c) < p.cost) return 0.0;
+    const size_t rest = c - static_cast<size_t>(p.cost);
+    double n = 0.0;
+    for (size_t type = 0; type < 2; ++type)
+        if (p.first[type]) n += count_range(*remainders_[type], lo, hi, rest);
+    return mu_ * n;
 }
 
 template <class Intensity>
@@ -382,15 +424,37 @@ double CensusGain::saving(int64_t best, const Intensity& at) const {
     return total;
 }
 
-double CensusGain::scan(int cov, int a, int scov, int64_t best) const {
-    const int covered = std::min(a, scov);
+double CensusGain::scan(int cov, int a, const std::vector<int>& depths, int64_t best) const {
+    // prefixes of one shape at one depth reach the same gates: (shape, depth) ->
+    // (a prefix, their number)
+    std::map<std::pair<int, int>, std::pair<const Prefix*, int>> alike;
+    for (size_t i = 0; i < depths.size(); ++i) {
+        auto& [prefix, count] = alike[{prefixes_[i].shape, depths[i]}];
+        prefix = &prefixes_[i];
+        ++count;
+    }
     return saving(best, [&](size_t c) {
-        return intensity(cov, a, c) - kLevelSplitCoverage * intensity(cov, covered, c);
+        double v = intensity(cov, a, c);
+        // less the gates P R the prefixes reached: level(R) <= depth - L k
+        for (const auto& [key, group] : alike) {
+            const Prefix& p = *group.first;
+            v -= group.second *
+                 reached(p, cov - p.shift, std::min(a - p.shift, key.second - offset_), c);
+        }
+        return std::max(v, 0.0);
     });
 }
 
-double CensusGain::split(int lo, int y, int64_t best) const {
-    return saving(best, [&](size_t c) { return kLevelSplitCoverage * intensity(lo, y, c); });
+double CensusGain::split(int cov, const std::vector<PrefixWalk>& walks, int64_t best) const {
+    return saving(best, [&](size_t c) {
+        double v = 0.0;
+        // remainders the walk newly reaches whose U lies past the scan's levels
+        for (const PrefixWalk& w : walks) {
+            const Prefix& p = prefixes_[w.prefix];
+            v += reached(p, std::max(w.from - offset_, cov - p.shift), w.to - offset_, c);
+        }
+        return v;
+    });
 }
 
 double DecayGain::reached(int l) const {
@@ -398,21 +462,30 @@ double DecayGain::reached(int l) const {
     return kDecayFirstSaving * (1.0 - std::pow(kDecayPerLevel, o)) / (1.0 - kDecayPerLevel);
 }
 
-double DecayGain::scan(int cov, int a, int scov, int64_t best) const {
+double DecayGain::scan(int cov, int a, const std::vector<int>& depths, int64_t best) const {
     double gain = reached(a) - reached(cov);
+    // the split walks every prefix together, so their depths are equal
+    const int scov = depths.empty() ? cov : depths.front();
     if (scov > cov) gain -= kDecaySplitCoverage * (reached(std::min(a, scov)) - reached(cov));
     return static_cast<double>(best) * gain;
 }
 
-double DecayGain::split(int lo, int y, int64_t best) const {
-    return static_cast<double>(best) * kDecaySplitCoverage * (reached(y) - reached(lo));
+double DecayGain::split(int cov, const std::vector<PrefixWalk>& walks, int64_t best) const {
+    if (walks.empty()) return 0.0;
+    // the walks share one level; each prefix saves its share of it
+    const PrefixWalk& w = walks.front();
+    const double share = static_cast<double>(walks.size()) / static_cast<double>(prefixes_);
+    return static_cast<double>(best) * kDecaySplitCoverage *
+           (reached(w.to) - reached(std::max(cov, w.from))) * share;
 }
 
 std::unique_ptr<LevelGain> level_gain(const GateSet& gateset, const Price& price, double epsilon,
-                                      const Unitary& V, int start, int first_answer_level) {
+                                      const Unitary& V, int start, int first_answer_level,
+                                      const PrefixSet* split) {
     if (stopping_fallback(V) || !has_stopping_model(gateset, price, start))
-        return std::make_unique<DecayGain>(first_answer_level);
-    return std::make_unique<CensusGain>(gateset, price, epsilon, start);
+        return std::make_unique<DecayGain>(first_answer_level,
+                                           split ? split->prefixes.size() : 0);
+    return std::make_unique<CensusGain>(gateset, price, epsilon, start, split);
 }
 
 bool stopping_fallback(const Unitary& V) {

@@ -8,24 +8,38 @@
 // ===----------------------------------------------------------------------===//
 
 // Prefix sets for the prefix split: per denominator scale
-// k, the cost-ball cosets of scale k, cheapest first, with their inverses.
+// k, the cost-ball cosets of scale k, cheapest first, with their inverses and
+// normal forms.
 #pragma once
 
 #include "quicksynth/data_structures/cost_ball.hpp"
 #include "quicksynth/data_structures/cyclotomic_matrix.hpp"
 #include "quicksynth/data_structures/su2.hpp"
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <vector>
 
 namespace quicksynth {
 
-// Prefixes of one denominator scale and their inverses P^dagger, cheapest first.
+// A prefix P's normal form: its cost, its syllables by type (0: T, 1: Q), the
+// type of its first syllable when that has no connector, and per type b whether
+// the set also holds a child P C b, which reaches every element P C b R sooner.
+struct PrefixForm {
+    int64_t cost = 0;
+    int n_t = 0, n_q = 0;
+    std::optional<int> bare_first;
+    std::array<bool, 2> extended{};
+};
+
+// Prefixes of one denominator scale, their inverses P^dagger and their normal
+// forms, cheapest first.
 struct PrefixSet {
     int scale = 0;
     std::vector<CyclotomicMatrix> prefixes;
     std::vector<Unitary> inverses;
+    std::vector<PrefixForm> forms;
 };
 
 // Returns k, k - 1, ..., 1. Shallower scales are fallbacks for targets with no
