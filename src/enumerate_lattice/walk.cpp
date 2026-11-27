@@ -193,14 +193,15 @@ struct LeafTest {
     double s_min;
     double tol;
 
-    // The identity place first: its norm and the cap reject almost every point.
+    // The conjugate places first: the walk's forms already hold its leaves
+    // near the cap, so the identity place passes almost all of them and the
+    // rejections come from the conjugates. The test is a conjunction of
+    // independent checks, so the order changes only the time.
     bool passes(const double* coefficients) const {
-        for (int place = 0; place < lattice_dimension / 4; ++place) {
-            const std::optional<PlaceVector> y = unit_vector_at(place, coefficients);
-            if (!y) return false;
-            if (place == 0 && !in_cap(*y)) return false;
-        }
-        return true;
+        for (int place = 1; place < lattice_dimension / 4; ++place)
+            if (!unit_vector_at(place, coefficients)) return false;
+        const std::optional<PlaceVector> y = unit_vector_at(0, coefficients);
+        return y && in_cap(*y);
     }
 
     // Rows 4 place, ..., 4 place + 3 of y, if they form a unit vector within
