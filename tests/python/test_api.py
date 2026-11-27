@@ -250,6 +250,26 @@ def test_fine_levels_without_fast() -> None:
         assert explicit.synthesise(target, 1e-6).word == answer.word
 
 
+def test_rate_sets_the_search_rate() -> None:
+    """rate reaches the core's rate rules, in place of the default's and fast's,
+    and must be a positive number."""
+    U = haar_random_unitary(np.random.default_rng(24))
+    target = np.ascontiguousarray(api.nearest_unitary(U), dtype=np.complex128)
+    core = api._core.QuickSynth
+    for rate in (0.1, 30.0):
+        r = sq.QuickSynth(rate=rate).synthesise(U, 1e-6)
+        assert r.distance <= 1e-6
+        assert r.word == core("sqrt_t", 1, 3, rate=rate).synthesise(target, 1e-6).word
+    # over fast: fast at the default's rate searches as the default does
+    d = sq.QuickSynth().synthesise(U, 1e-6)
+    f = sq.QuickSynth(fast=True, rate=api.POLICY.fine_rate).synthesise(U, 1e-6)
+    assert f.word == d.word
+    assert sq.SynthesisConfig(rate=2).rate == 2.0
+    for bad in (0, -1.0, math.inf, math.nan):
+        with pytest.raises(ValueError, match="rate"):
+            sq.SynthesisConfig(rate=bad)
+
+
 @pytest.mark.parametrize("stopping_rule", ["fixed", "model"])
 def test_quicksynth_prepares_ahead_of_a_call(stopping_rule: str) -> None:
     """prepare builds the balls of a call at epsilon and checks epsilon as a call does.

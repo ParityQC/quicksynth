@@ -98,6 +98,7 @@ rotation. The most used options:
 | `gateset` | `"sqrt_t"` | `"clifford_t"` restricts the words to Clifford+T |
 | `t_cost`, `q_cost` | `1`, `3` | magic-state price of `T` and `√T` |
 | `fast` | `False` | search less past the first answer: faster, at a slightly higher cost on Clifford+√T |
+| `rate` | `None` | magic states a walk past the first answer must save per second: larger is faster and dearer; replaces the rate of the default and of `fast` |
 | `workers` | `1` | threads for the scan's walk |
 | `time_limit` | `None` | seconds after which no further search stage starts |
 

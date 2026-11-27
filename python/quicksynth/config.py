@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Literal, get_args
 
@@ -68,6 +69,15 @@ class SynthesisConfig:
     scales no walk past the first answer whose predicted time exceeds about 1 s at
     cost 50. Faster near a split scale's point budget, at a slightly higher cost.
     With ``fine_levels`` LevelSearch's rate is ``POLICY.fine_fast_rate``."""
+    rate: float | None = None
+    """Magic states a walk past the first answer must save per second of its
+    predicted time; a positive number. Sets the trade between cost and runtime
+    directly, in place of the rates of the default and of ``fast``: larger is
+    faster and dearer. It is LevelSearch's rate on Clifford+sqrt(T) (default
+    ``POLICY.fine_rate``, ``POLICY.fine_fast_rate`` with ``fast``) and the rate
+    rule's on whole scales (``POLICY.rate``, ``POLICY.fast_rate``); a value
+    tuned for one does not carry over to the other. ``fast`` still sets stage 0's
+    ``rotation_solvable``."""
     fine_levels: bool | None = None
     """Clifford+sqrt(T): search the four finer levels of each denominator scale
     (sublattices delta^sub, delta = 1 - zeta16) and, past the first answer, walk
@@ -113,6 +123,10 @@ class SynthesisConfig:
             raise ValueError("rotation_tolerance must lie in [0, 1)")
         if self.rotation_solvable is not None and self.rotation_solvable < 1:
             raise ValueError("rotation_solvable must be at least 1")
+        if self.rate is not None:
+            if not (math.isfinite(self.rate) and self.rate > 0):
+                raise ValueError("rate must be a positive number")
+            object.__setattr__(self, "rate", float(self.rate))
         object.__setattr__(self, "verbose", bool(self.verbose))
         object.__setattr__(self, "fast", bool(self.fast))
         if self.fine_levels is not None:

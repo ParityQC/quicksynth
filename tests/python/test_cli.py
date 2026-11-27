@@ -79,6 +79,16 @@ def test_fine_levels_flag(capsys) -> None:
     assert words[0] != words[1]
 
 
+def test_rate_flag() -> None:
+    """--rate sets the config's rate, which must be positive; without it, None."""
+    parse = build_parser().parse_args
+    assert _config(parse(["pi/7", "1e-5"])).rate is None
+    assert _config(parse(["pi/7", "1e-5", "--rate", "6"])).rate == 6.0
+    assert _config(parse(["pi/7", "1e-5", "--fast", "--rate", "0.5"])).rate == 0.5
+    with pytest.raises(ValueError, match="rate"):
+        _config(parse(["pi/7", "1e-5", "--rate", "0"]))
+
+
 def test_the_method_is_quicksynth(capsys) -> None:
     """The CLI runs QuickSynth and rejects other methods' and removed options."""
     assert main(["pi/4", "1e-3", "--json"]) == 0
