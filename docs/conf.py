@@ -41,6 +41,7 @@ include_patterns = [
     "RESULTS.md",
     "CONTRIBUTING.md",
     ".devcontainer/README.md",
+    "tests/fixtures/README.md",
     "docs/**",
 ]
 exclude_patterns = ["docs/_static/**", "docs/_extra/**"]
