@@ -28,9 +28,9 @@ cost, labelled with the ratio of the times. The percentages compare each
 method's cost with cyclosynth's at its default deadline; pygridsynth's are
 compared with QuickSynth's.
 
-At ε = 10<sup>-7</sup> on Clifford+√T, the fast setting takes 0.43
-CPU-seconds per rotation and the default 3.06. cyclosynth at its default
-deadline takes 4.32, and its circuits cost 5.7% and 8.5% more. None of
+At ε = 10<sup>-7</sup> on Clifford+√T, the fast setting takes 0.15
+CPU-seconds per rotation and the default 0.69. cyclosynth at its default
+deadline takes 4.34, and its circuits cost 5.7% and 8.5% more. None of
 cyclosynth's measured deadlines reaches the mean cost of either setting.
 
 ## Cost against precision

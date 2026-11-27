@@ -10,6 +10,7 @@
 #include "quicksynth/enumerate_lattice/search_region.hpp"
 
 #include "quicksynth/enumerate_lattice/lll.hpp"
+#include "quicksynth/data_structures/double_double.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -103,6 +104,102 @@ CapForm cap_form(const CapEllipsoid& cap, const Vec4& v) {
     return out;
 }
 
+// The double-double set-up. Below eps ~ 3.5e-7 the pads above, ulps of 1 along v, are no longer
+// small against the cap's thickness, and the dome stops being the smallest. They cover the
+// set-up's rounding: S's entries reach 1 / along and the walk's centre B^-1 E^-1 y0 is about as
+// large, both formed in doubles. Formed in double-double (precise_ellipsoid(), finish_setup()),
+// the walk's coordinates are within about 1e-11 of exact and the walk encloses the dome of the
+// cap's true thickness. The walk's own form has no slack (kFormSlack pads only the cap and
+// conjugate forms), so the kPreciseCapPad pads below, about 1.5e-6 of its squared radius at the
+// tip and 3.4e-6 at the rim, are the margin for that rounding.
+
+// The precise dome's pads. eps grows by 1e-14, more than the double acceptance test
+// (chord_distance) misjudges a distance by. Along v the paraboloid starts 1e-6 U above the tip
+// and is 2e-6 U thicker, across the semi-axis grows by 1e-6: a solution exactly at the tip (an
+// exact target) lies on the unpadded boundary, and the walk dropped some there.
+constexpr double kAcceptanceFuzz = 1e-14;
+constexpr double kPreciseCapPad = 1e-6;
+
+// The least semi-axis along v of the precise dome, 2^-60; it binds below eps ~ 1.5e-9. to_ball's
+// rows at the identity place and the walk's centre reach about 1 / along: at 2^-60 the LLL rows
+// (48 fractional bits) stay below the 2^120 of FloatLll, past which the reduction falls back to
+// exact integers, and the centre's double-double error, about 1e-32 / along ~ 1e-14, far below
+// the kPreciseCapPad margin.
+constexpr double kMinAlong = 0x1p-60;
+
+// The dome's ellipsoid, as dome_ellipsoid(), for the double-double set-up: of the cap at
+// eps + kAcceptanceFuzz, its thickness padded by kPreciseCapPad at both ends, and its semi-axis
+// along v at least kMinAlong; a longer semi-axis about the same centre still holds the cap.
+PreciseCap precise_dome(double epsilon) {
+    const double e = epsilon + kAcceptanceFuzz;
+    // U = 1 - s without cancellation
+    const double U = e * e / (1.0 + std::sqrt(1.0 - e * e));
+    const double pad = kPreciseCapPad * U, thickness = U + 2.0 * pad;
+    return {std::max(0.8 * thickness, kMinAlong),
+            4.0 / std::sqrt(15.0) * std::sqrt(2.0 * thickness) * (1.0 + kPreciseCapPad),
+            0.8 * thickness - pad};
+}
+
+// sqrt2^K in double-double.
+DD sqrt2_power_dd(int K) {
+    const int whole = K >= 0 ? K / 2 : -((1 - K) / 2);  // floor(K / 2)
+    return dd_ldexp(K - 2 * whole == 1 ? sqrt2_dd() : DD{1.0, 0.0}, whole);
+}
+
+// The Loewner ellipsoid of the double-double set-up, around `cap`: the identity place's rows of
+// to_ball, S E with S = I / across + (1 / along - 1 / across) v v^t, and the centre E^-1 y0 with
+// y0 = (1 - depth) v, formed in double-double for v normalised. Only E's identity rows
+// M / sqrt2^K enter, M's entries correctly rounded: the other places' rows of to_ball are
+// `embedding`'s (their forms are the unit balls), and E^-1 = M^t sqrt2^K / P as M^t M = P I.
+LoewnerEllipsoid precise_ellipsoid(const GateSet& gateset, const PreciseCap& cap,
+                                   const Vec4& target, int denominator_exponent,
+                                   const std::vector<double>& embedding) {
+    const int n = gateset.dim(), d = gateset.degree();
+    // search_direction() leaves |v|^2 - 1 at a few ulps
+    DD norm_sq{};
+    for (const double x : target) norm_sq = norm_sq + two_prod(x, x);
+    const DD norm = dd_sqrt(norm_sq);
+    DD v[4];
+    for (int i = 0; i < 4; ++i) v[i] = DD{target[i], 0.0} / norm;
+    const DD across = DD{1.0, 0.0} / DD{cap.across, 0.0};
+    const DD along = DD{1.0, 0.0} / DD{cap.along, 0.0} - across;
+    DD S[4][4];
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j) S[i][j] = along * v[i] * v[j] + (i == j ? across : DD{});
+    const DD height = DD{1.0, 0.0} - cap.depth;
+    // M's rows at the identity place: Re and Im of zeta^(a step i) = exp(i pi 2 a step i / 16) in
+    // rows 0, 1 at column i and in rows 2, 3 at column d + i
+    std::vector<DD> M(static_cast<size_t>(kRowsPerPlace) * n);
+    for (int i = 0; i < d; ++i) {
+        const int k = 2 * gateset.places[0] * gateset.step * i;
+        M[i] = M[static_cast<size_t>(2) * n + d + i] = cos_pi16(k);
+        M[static_cast<size_t>(n) + i] = M[static_cast<size_t>(3) * n + d + i] = sin_pi16(k);
+    }
+    const DD down = sqrt2_power_dd(-denominator_exponent);
+    const DD up =
+        sqrt2_power_dd(denominator_exponent) / DD{static_cast<double>(gateset.num_places()), 0.0};
+    LoewnerEllipsoid out{embedding, std::vector<double>(n),
+                         std::vector<double>(static_cast<size_t>(kRowsPerPlace) * n),
+                         std::vector<double>(n)};
+    for (int j = 0; j < n; ++j) {
+        DD c{};
+        for (int r = 0; r < kRowsPerPlace; ++r)
+            c = c + M[static_cast<size_t>(r) * n + j] * (height * v[r]);
+        c = c * up;
+        out.centre[j] = c.hi;
+        out.centre_low[j] = c.lo;
+        for (int i = 0; i < kRowsPerPlace; ++i) {
+            DD x{};
+            for (int r = 0; r < kRowsPerPlace; ++r)
+                x = x + S[i][r] * M[static_cast<size_t>(r) * n + j];
+            x = x * down;
+            out.to_ball[static_cast<size_t>(i) * n + j] = x.hi;
+            out.to_ball_low[static_cast<size_t>(i) * n + j] = x.lo;
+        }
+    }
+    return out;
+}
+
 // pi^(dim/2) / (dim/2)!, the volume of the unit ball in dim dimensions.
 double unit_ball(const GateSet& gateset) {
     double power = 1.0, factorial = 1.0;
@@ -193,6 +290,8 @@ SearchRegion::SearchRegion(double epsilon, GateSet gateset)
     cap_volume_ = (2 * half_along_) * (2 * epsilon) * (2 * epsilon) * (2 * epsilon);
     // the ellipsoid the walk encloses the cap in; the estimates count the box's
     cap_ = smallest_cap_ellipsoid(epsilon, s_, half_along_);
+    // where the pads make the dome not the smallest, the set-up is in double-double instead
+    if (volume(cap_) < volume(dome_ellipsoid(epsilon, s_))) precise_cap_ = precise_dome(epsilon);
     // 5% of the cap thickness, at least 1e-13: the leaf dot product rounds by
     // <= ~1.6e-14, so no element within epsilon is dropped
     s_min_ = s_ - std::max(0.05 * (1.0 - s_), 1e-13);
@@ -228,6 +327,8 @@ LatticeLevel level_at(int l, int L) {
 
 LoewnerEllipsoid SearchRegion::ellipsoid(const Vec4& target, int denominator_exponent,
                                          const std::vector<double>& embedding) const {
+    if (precise_cap_)
+        return precise_ellipsoid(gateset_, *precise_cap_, target, denominator_exponent, embedding);
     const int n = gateset_.dim();
     const std::vector<double> E_inv = embedding_inverse(gateset_, denominator_exponent);
     // S_cap is chosen such that the enclosed area is the cap's ellipsoid
@@ -257,7 +358,7 @@ LoewnerEllipsoid SearchRegion::ellipsoid(const Vec4& target, int denominator_exp
         x += row[3] * y0[3];
         c0[j] = x;
     }
-    return {std::move(A), std::move(c0)};
+    return {std::move(A), std::move(c0), {}, {}};
 }
 
 WalkLattice SearchRegion::walk_lattice(const std::vector<double>& E) const {

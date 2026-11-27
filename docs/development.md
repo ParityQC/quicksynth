@@ -249,6 +249,9 @@ around the cap (`search_region.cpp`), whose walks visit a median of 8.7 times
 fewer leaves, re-recorded 776 runs for their point counts (704 of the scan, all
 72 of the split) and 107 for another element of the same cost (78 of the scan, 1
 of the split, 28 combined).
+The double-double set-up of the cap below ε ≈ 3.5e-7 (`search_region.cpp`),
+whose walks at 1e-7 visit 9.1 times fewer leaves, re-recorded the 48 scan runs
+at 1e-7 for their point counts; no element changed.
 
 **Frozen fixtures.** These are `golden_words.json`, `golden_balls.json`,
 `golden_prefixes.json` and `golden_synthesise.json`. They hold the outputs
@@ -391,7 +394,10 @@ uv run python tools/fingerprint.py record -n 6              # needs the benchmar
   levels became the default on Clifford+√T, the 192 cases whose search changed
   were recorded again in place, among them 32 with another word (cost 49 lower
   in all, two dearer), and the 17 `whole-*` cases were added with the answers
-  recorded before. The full check takes about ten minutes of one CPU.
+  recorded before. When the cap's set-up moved to double-double below
+  ε ≈ 3.5e-7, the 91 cases at 1e-7 to 1e-13 whose per-walk point counts
+  changed were recorded again in place, 3 of them with another word of the
+  same cost. The full check takes about ten minutes of one CPU.
 - `test_fingerprint.py` runs each case as a test: the 206 marked `fast`, those
   that walk the fewest leaves at stage 1 and the `whole-*` cases of those, in
   every `pytest` run, and so in CI (a few seconds); the others under the

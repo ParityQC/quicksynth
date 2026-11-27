@@ -1,14 +1,539 @@
 /* Copyright (c) 2026 Parity Quantum Computing GmbH
    SPDX-License-Identifier: MIT */
 
-/* Placeholder colours until ParityQC's brand colours arrive: replace the
-   primary and secondary values below, in both modes. */
-html[data-theme="light"] {
-  --pst-color-primary: #3b5bdb;
-  --pst-color-secondary: #0b7285;
+/* ParityQC brand on the PyData theme: dark navy by default, a light mode with
+   the same accents. Outfit stands in for ParityQC's Sofia Pro. */
+
+/* the variable font in two weight ranges, matching the Inter faces below so
+   that their unicode-range applies */
+@font-face {
+  font-family: "Outfit";
+  src: url("fonts/Outfit.woff2") format("woff2");
+  font-weight: 100 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Outfit";
+  src: url("fonts/Outfit.woff2") format("woff2");
+  font-weight: 501 900;
+  font-display: swap;
+}
+
+/* Greek, sqrt, super- and subscripts that Outfit lacks: subsets of Inter
+   (SIL OFL 1.1, fonts/OFL-Inter.txt), scaled to Outfit's x-height */
+@font-face {
+  font-family: "Outfit";
+  src: url("fonts/InterMath-Regular.woff2") format("woff2");
+  font-weight: 100 500;
+  font-display: swap;
+  size-adjust: 88%;
+  unicode-range: U+00B2-00B3, U+00B9, U+03B1-03C9, U+2020, U+2070-209C, U+221A, U+2248, U+2260, U+2264-2265;
+}
+
+@font-face {
+  font-family: "Outfit";
+  src: url("fonts/InterMath-SemiBold.woff2") format("woff2");
+  font-weight: 501 900;
+  font-display: swap;
+  size-adjust: 88%;
+  unicode-range: U+00B2-00B3, U+00B9, U+03B1-03C9, U+2020, U+2070-209C, U+221A, U+2248, U+2260, U+2264-2265;
+}
+
+html {
+  --qs-red: #e61430;
+  --qs-orange: #ed5816;
+  --qs-teal: #87d0bf;
+  --qs-lime: #d6d45e;
+  --qs-navy-dark: #050e1f;
+  --qs-navy: #121d32;
+  --qs-panel: #2d3966;
+  --qs-panel-line: #3d4a80;
+
+  --pst-font-family-base: "Outfit", var(--pst-font-family-base-system);
+  --pst-font-family-heading: "Outfit", var(--pst-font-family-base-system);
+  --pst-font-weight-heading: 600;
+  --pst-admonition-font-weight-heading: 500;
 }
 
 html[data-theme="dark"] {
-  --pst-color-primary: #8ea2ff;
-  --pst-color-secondary: #66d9e8;
+  --pst-color-primary: #e61430;
+  --pst-color-primary-text: #ffffff;
+  --pst-color-primary-highlight: #ff2e4a;
+  --pst-color-primary-bg: #3a0e1c;
+  --pst-color-secondary: #d6d45e;
+  --pst-color-secondary-text: #050e1f;
+  --pst-color-secondary-highlight: #e4e27c;
+  --pst-color-secondary-bg: #2c2f1a;
+  --pst-color-accent: #87d0bf;
+  --pst-color-accent-bg: #133331;
+  --pst-color-info: #87d0bf;
+  --pst-color-info-bg: #133331;
+  --pst-color-success: #87d0bf;
+  --pst-color-success-bg: #133331;
+  --pst-color-warning: #ed5816;
+  --pst-color-warning-bg: #3b1c10;
+  --pst-color-danger: #ff5c70;
+  --pst-color-danger-bg: #3a0e1c;
+
+  --pst-color-text-base: #dfe3ee;
+  --pst-color-text-muted: #8e97b5;
+  --pst-color-heading: #ffffff;
+  --pst-color-link: #ff5c70;
+  --pst-color-link-hover: #d6d45e;
+  --pst-color-link-higher-contrast: #ff7a8b;
+  --pst-color-inline-code: #87d0bf;
+  --pst-color-inline-code-links: #ff7a8b;
+  --pst-color-target: #3d4a80;
+  --pst-color-blockquote-notch: #87d0bf;
+  --pst-color-shadow: rgb(0 0 0 / 35%);
+
+  --pst-color-border: #2d3966;
+  --pst-color-border-muted: #1c2846;
+  --pst-color-background: #050e1f;
+  --pst-color-on-background: #0d1830;
+  --pst-color-surface: #121d32;
+  --pst-color-on-surface: #f3f4f8;
+
+  --pst-color-table: #ffffff;
+  --pst-color-table-row-hover-bg: #2d3966;
+  --pst-color-table-inner-border: #25314f;
+  --pst-color-table-outer-border: #2d3966;
+  --pst-color-table-heading-bg: #121d32;
+  --pst-color-table-row-zebra-high-bg: #0d1830;
+  --pst-color-table-row-zebra-low-bg: #101b30;
+
+  --qs-header-bg: rgb(5 14 31 / 88%);
+  --qs-panel-bg: rgb(18 29 50 / 72%);
+  --qs-code-bg: #0b1528;
+  --qs-pill-bg: #d6d45e;
+  --qs-pill-ink: #050e1f;
+  --qs-stripe: #1a2742;
+  --qs-circle: #16233c;
+}
+
+html[data-theme="light"] {
+  --pst-color-primary: #e61430;
+  --pst-color-primary-text: #ffffff;
+  --pst-color-primary-highlight: #c8102a;
+  --pst-color-primary-bg: #fde7ea;
+  --pst-color-secondary: #121d32;
+  --pst-color-secondary-text: #ffffff;
+  --pst-color-secondary-highlight: #2d3966;
+  --pst-color-secondary-bg: #e8eaf3;
+  --pst-color-accent: #1f7a68;
+  --pst-color-accent-bg: #e3f4ef;
+  --pst-color-info: #1f7a68;
+  --pst-color-info-bg: #e3f4ef;
+  --pst-color-success: #1f7a68;
+  --pst-color-success-bg: #e3f4ef;
+  --pst-color-warning: #c2410c;
+  --pst-color-warning-bg: #fdeee6;
+  --pst-color-danger: #c8102a;
+  --pst-color-danger-bg: #fde7ea;
+  /* text on the warning colour, e.g. the skip link */
+  --pst-color-warning-text: #ffffff;
+
+  --pst-color-text-base: #121d32;
+  --pst-color-text-muted: #4f5a7a;
+  --pst-color-heading: #050e1f;
+  --pst-color-link: #c8102a;
+  --pst-color-link-hover: #050e1f;
+  --pst-color-link-higher-contrast: #a50d22;
+  --pst-color-inline-code: #1f6f60;
+  --pst-color-inline-code-links: #c8102a;
+  --pst-color-target: #f1f0c8;
+  --pst-color-blockquote-notch: #1f7a68;
+  --pst-color-shadow: rgb(18 29 50 / 10%);
+
+  --pst-color-border: #d6dae6;
+  --pst-color-border-muted: #e6e9f1;
+  --pst-color-background: #f7f8fb;
+  --pst-color-on-background: #ffffff;
+  --pst-color-surface: #eef0f6;
+  --pst-color-on-surface: #121d32;
+
+  --pst-color-table: #121d32;
+  --pst-color-table-row-hover-bg: #eef0f6;
+  --pst-color-table-inner-border: #e2e5ee;
+  --pst-color-table-outer-border: #d6dae6;
+  --pst-color-table-heading-bg: #eef0f6;
+  --pst-color-table-row-zebra-high-bg: #ffffff;
+  --pst-color-table-row-zebra-low-bg: #f7f8fb;
+
+  --qs-header-bg: rgb(255 255 255 / 90%);
+  --qs-panel-bg: #ffffff;
+  --qs-code-bg: #f1f3f8;
+  --qs-pill-bg: #d6d45e;
+  --qs-pill-ink: #050e1f;
+  --qs-stripe: #e9ecf4;
+  --qs-circle: #e9ecf4;
+}
+
+/* --- page background: diagonal navy gradient and a faint circle ------------------- */
+
+/* fixed layers rather than background-attachment: fixed, which iOS ignores */
+html[data-theme="dark"] {
+  background-color: #050e1f;
+  --qs-page: linear-gradient(135deg, #050e1f 0%, #121d32 50%, #050e1f 100%);
+}
+
+html[data-theme="light"] {
+  background-color: #f7f8fb;
+  --qs-page: linear-gradient(135deg, #ffffff 0%, #f1f3f8 50%, #ffffff 100%);
+}
+
+html::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: var(--qs-page);
+  z-index: -2;
+  pointer-events: none;
+}
+
+body {
+  background: transparent;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  right: -14vmax;
+  bottom: -18vmax;
+  width: 44vmax;
+  height: 44vmax;
+  border-radius: 50%;
+  background: var(--qs-circle);
+  opacity: 0.55;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* the PyData sidebars paint the page colour; on wide screens let the gradient through */
+@media (min-width: 960px) {
+  .bd-sidebar-primary {
+    background-color: transparent;
+  }
+}
+
+@media (min-width: 1200px) {
+  .bd-sidebar-secondary {
+    background-color: transparent;
+  }
+}
+
+/* --- type ------------------------------------------------------------------------- */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-weight: 700;
+}
+
+.bd-content p,
+.bd-content li {
+  font-weight: 350;
+}
+
+html[data-theme="light"] .bd-content p,
+html[data-theme="light"] .bd-content li {
+  font-weight: 400;
+}
+
+.bd-content strong,
+.bd-content b {
+  font-weight: 600;
+  color: var(--pst-color-heading);
+}
+
+/* --- header ----------------------------------------------------------------------- */
+
+.bd-header {
+  background-color: var(--qs-header-bg) !important;
+  backdrop-filter: blur(8px);
+  box-shadow: none;
+  border-bottom: 1px solid var(--pst-color-border-muted);
+}
+
+.navbar-brand {
+  gap: 0;
+}
+
+.navbar-brand img {
+  height: 1.75rem;
+}
+
+/* "QuickSynth" after the ParityQC logo, set off by a thin rule */
+.navbar-brand .logo__title {
+  margin-left: 0.85rem;
+  padding-left: 0.85rem;
+  border-left: 1px solid var(--qs-panel-line);
+  font-weight: 600;
+  font-size: 1.2rem;
+  color: var(--pst-color-heading);
+  letter-spacing: 0;
+}
+
+@media (max-width: 959.98px) {
+  .navbar-brand img {
+    height: 1.3rem;
+  }
+
+  .navbar-brand .logo__title {
+    margin-left: 0.6rem;
+    padding-left: 0.6rem;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .navbar-brand img {
+    height: 1.1rem;
+  }
+
+  .navbar-brand .logo__title {
+    margin-left: 0.5rem;
+    padding-left: 0.5rem;
+    font-size: 0.95rem;
+  }
+}
+
+html[data-theme="light"] .navbar-brand .logo__title {
+  border-left-color: #c9cee0;
+}
+
+.bd-header .navbar-nav .nav-link {
+  font-weight: 400;
+}
+
+/* current page: heading-coloured text over the theme's red underline;
+   brand red text is below AA on navy */
+.bd-header ul.navbar-nav > li.nav-item.current > .nav-link,
+.bd-header .navbar-nav .nav-link:hover {
+  color: var(--pst-color-heading);
+}
+
+/* --- code -------------------------------------------------------------------------- */
+
+div.highlight,
+.highlight pre,
+pre {
+  background-color: var(--qs-code-bg);
+}
+
+div.highlight,
+pre {
+  border: 1px solid var(--pst-color-border-muted);
+  border-radius: 0.6rem;
+}
+
+div.highlight pre {
+  border: 0;
+}
+
+code.literal {
+  background-color: var(--pst-color-surface);
+  border-color: var(--pst-color-border-muted);
+}
+
+/* --- admonitions: a panel with a lime pill for the title --------------------------- */
+
+.admonition,
+div.admonition {
+  background: var(--qs-panel-bg);
+  border: 1px solid var(--pst-color-border);
+  border-left-width: 1px;
+  border-radius: 0.9rem;
+  box-shadow: none;
+  padding-bottom: 0.4rem;
+}
+
+.admonition > .admonition-title,
+div.admonition > .admonition-title {
+  display: inline-block;
+  margin: 0.9rem 1.4rem 0.2rem;
+  padding: 0.15rem 0.9rem 0.15rem 2rem;
+  border-radius: 999px;
+  background-color: var(--qs-pill-bg) !important;
+  color: var(--qs-pill-ink);
+  font-size: 0.85rem;
+}
+
+.admonition > .admonition-title::before,
+div.admonition > .admonition-title::before {
+  display: none;
+}
+
+.admonition > .admonition-title::after,
+div.admonition > .admonition-title::after {
+  color: var(--qs-pill-ink) !important;
+  top: 0.15rem;
+  left: 0.2rem;
+}
+
+.admonition.warning > .admonition-title,
+.admonition.caution > .admonition-title,
+.admonition.attention > .admonition-title,
+.admonition.danger > .admonition-title,
+.admonition.error > .admonition-title {
+  background-color: var(--qs-orange) !important;
+  color: #ffffff;
+}
+
+.admonition.warning > .admonition-title::after,
+.admonition.caution > .admonition-title::after,
+.admonition.attention > .admonition-title::after,
+.admonition.danger > .admonition-title::after,
+.admonition.error > .admonition-title::after {
+  color: #ffffff !important;
+}
+
+/* --- cards (landing page) ---------------------------------------------------------- */
+
+.sd-card {
+  background: var(--qs-panel-bg);
+  border: 1px solid var(--pst-color-border) !important;
+  border-radius: 1rem;
+  transition:
+    border-color 0.15s,
+    transform 0.15s;
+}
+
+.sd-card:hover {
+  border-color: var(--qs-red) !important;
+  transform: translateY(-2px);
+}
+
+.sd-card .sd-card-body {
+  background: transparent;
+}
+
+.sd-card .sd-card-title {
+  font-weight: 600;
+  color: var(--pst-color-heading);
+}
+
+.sd-card .sd-card-text {
+  color: var(--pst-color-text-muted);
+}
+
+html[data-theme="light"] .sd-card {
+  box-shadow: 0 1px 3px rgb(18 29 50 / 6%);
+}
+
+/* --- landing page hero: diamond trio and a stripe texture -------------------------- */
+
+/* stripes from the top right corner, under the header */
+body:has(.qs-diamonds)::after {
+  content: "";
+  position: absolute;
+  top: var(--pst-header-height);
+  right: 0;
+  width: min(40rem, 70vw);
+  height: 30rem;
+  background: repeating-linear-gradient(-45deg, var(--qs-stripe) 0 9px, transparent 9px 24px);
+  mask-image: radial-gradient(ellipse at top right, rgb(0 0 0 / 90%) 10%, transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.qs-diamonds {
+  display: flex;
+  gap: 0.55rem;
+  margin: -0.4rem 0 1.4rem 0.2rem;
+}
+
+.qs-diamonds span {
+  width: 0.7rem;
+  height: 0.7rem;
+  transform: rotate(45deg);
+  background: var(--qs-orange);
+}
+
+.qs-diamonds span:nth-child(2) {
+  background: var(--qs-teal);
+}
+
+.qs-diamonds span:nth-child(3) {
+  background: var(--qs-lime);
+}
+
+.qs-diamonds + p {
+  font-size: 1.25rem;
+  line-height: 1.5;
+  color: var(--pst-color-heading);
+}
+
+/* --- tables, sidebars, search, footer ---------------------------------------------- */
+
+.table th,
+table.table th {
+  font-weight: 600;
+}
+
+.bd-sidebar-primary li.current > a,
+.bd-sidebar-secondary .toc-entry a.nav-link.active {
+  color: var(--pst-color-heading);
+  font-weight: 500;
+  box-shadow: inset 2px 0 0 var(--qs-red);
+}
+
+.search-button-field,
+.bd-search {
+  background-color: var(--pst-color-surface);
+  border-color: var(--pst-color-border);
+  border-radius: 999px;
+}
+
+.bd-search .search-button__kbd-shortcut {
+  color: var(--pst-color-text-muted);
+}
+
+/* the search page's field sits inside the rounded box */
+.bd-search input.form-control {
+  background-color: transparent;
+}
+
+/* search hits and anchor targets */
+span.highlighted {
+  color: var(--pst-color-heading);
+  border-radius: 0.2rem;
+}
+
+/* letter rows of the module index (basic.css paints them #eee) */
+table.indextable tr.cap {
+  background-color: var(--pst-color-surface);
+}
+
+kbd,
+.kbd-shortcut__modifier {
+  background-color: var(--pst-color-on-background);
+  border-color: var(--pst-color-border);
+  color: var(--pst-color-text-muted);
+}
+
+.bd-footer {
+  background: transparent;
+  border-top-color: var(--pst-color-border-muted);
+  color: var(--pst-color-text-muted);
+}
+
+.dropdown-menu {
+  --bs-dropdown-bg: var(--pst-color-on-background);
+  --bs-dropdown-border-color: var(--pst-color-border);
+  --bs-dropdown-link-color: var(--pst-color-text-base);
+  --bs-dropdown-link-hover-color: var(--pst-color-heading);
+  --bs-dropdown-link-hover-bg: var(--pst-color-surface);
+  --bs-dropdown-link-active-color: var(--qs-red);
+  --bs-dropdown-link-active-bg: var(--pst-color-surface);
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 24px var(--pst-color-shadow);
 }

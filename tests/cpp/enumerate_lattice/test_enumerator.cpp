@@ -47,7 +47,7 @@ double distance_of(const Enumerator::Hit& h, const Unitary& V) {
 SublatticeBasis fresh_basis(int n, const std::vector<double>& A) {
     LllTransform t;
     REQUIRE(lll_transform(n, lll_rows(n, A.data(), 48), int64_t{1} << 40, t));
-    return {0, t.T, std::vector<double>(t.T_inv.begin(), t.T_inv.end())};
+    return {0, t.T, std::vector<double>(t.T_inv.begin(), t.T_inv.end()), {}};
 }
 
 // X Y for n x n integer matrices, exact.
@@ -195,6 +195,36 @@ TEST_CASE("a next sublattice basis rejects parents it cannot divide exactly") {
     SublatticeBasis huge = parent;
     for (double& b : huge.from_power_basis) b = b == 0 ? 0 : std::copysign(std::ldexp(1.0, 62), b);
     CHECK_FALSE(next_sublattice_basis(g, huge, A));
+}
+
+TEST_CASE("a next sublattice basis keeps the part of its inverse past a double") {
+    // a cap ellipsoid 2^8 smaller than at 1e-9: B^-1 passes 2^53, where from_power_basis rounds
+    const GateSet g = GateSet::sqrt_t();
+    const SearchRegion region(1e-9, g);
+    const int n = g.dim(), K = region.first_scale();
+    const Vec4 v = search_direction(calibration_targets()[0], 0, g);
+    const std::vector<double> A = region.ellipsoid(v, K, embedding(g, K)).to_ball;
+    std::vector<double> thinner = A;
+    for (int k = 0; k < 4 * n; ++k) thinner[k] *= 256;
+    const std::optional<SublatticeBasis> next =
+        next_sublattice_basis(g, fresh_basis(n, A), thinner);
+    REQUIRE(next);
+    REQUIRE_FALSE(next->from_power_basis_low.empty());
+    // B (2^sub B^-1) = 2^sub, the numerators hi + lo exact integers
+    const int sub = next->sub;
+    for (int r = 0; r < n; ++r)
+        for (int c = 0; c < n; ++c) {
+            __int128 one = 0;
+            for (int j = 0; j < n; ++j) {
+                const size_t jc = static_cast<size_t>(j) * n + c;
+                const double hi = std::ldexp(next->from_power_basis[jc], sub);
+                const double lo = std::ldexp(next->from_power_basis_low[jc], sub);
+                REQUIRE(lo == std::nearbyint(lo));
+                one += next->to_power_basis[static_cast<size_t>(r) * n + j] *
+                       (static_cast<__int128>(hi) + static_cast<__int128>(lo));
+            }
+            CHECK(one == (r == c ? __int128{1} << sub : 0));
+        }
 }
 
 TEST_CASE("a transform cache cleared within a batch of finer levels keeps the survivors") {

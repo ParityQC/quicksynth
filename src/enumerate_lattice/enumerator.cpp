@@ -137,22 +137,32 @@ double rescale_factor(int reference_scale, int scale) {
 
 // The set-up's centre at the walk's scale, split into the integer point nearest
 // it and the rest. The reduced centre is huge (about 1e14 to 1e15 at eps =
-// 1e-8, where doubles are 0.01 to 0.1 apart), so the walk runs about that
-// integer point and computes with the rest only: its operands stay of order
-// one. Lattice points stay lattice points, the point being an integer one, and
-// the subtraction is exact.
+// 1e-8 in a double set-up, beyond 1e18 in a double-double one), so the walk runs
+// about that integer point and computes with the rest only: its operands stay
+// of order one. Lattice points stay lattice points, the point being an integer
+// one, and the subtraction is exact. The point is kept modulo 2^64, all
+// apply_transform() needs: it may pass 64 bits, the lattice point B origin does
+// not.
 struct SplitCentre {
-    std::vector<int64_t> origin;  // the nearest integer point
+    std::vector<int64_t> origin;  // the nearest integer point, modulo 2^64
     std::vector<double> rest;     // the centre less the origin, each in [-1/2, 1/2]
 };
 
-SplitCentre split_centre(const std::vector<double>& reduced_center, double power) {
-    const size_t n = reduced_center.size();
+SplitCentre split_centre(const Setup& setup, double power) {
+    const std::vector<double>& high = setup.reduced_center;
+    const std::vector<double>& low = setup.reduced_center_low;  // empty in a double set-up
+    const size_t n = high.size();
+    const double scale = 1.0 / power;  // a power of two: the products are exact
     SplitCentre out{std::vector<int64_t>(n), std::vector<double>(n)};
     for (size_t i = 0; i < n; ++i) {
-        const double centre = reduced_center[i] / power;  // at the walk's scale
-        out.origin[i] = static_cast<int64_t>(std::nearbyint(centre));
-        out.rest[i] = centre - static_cast<double>(out.origin[i]);
+        const double hi = high[i] * scale, lo = low.empty() ? 0.0 : low[i] * scale;
+        const double whole = std::nearbyint(hi);
+        // hi - whole is exact; lo, at most half an ulp of hi, may move the nearest integer
+        const double fraction = (hi - whole) + lo;
+        const double step = std::nearbyint(fraction);
+        const auto origin = static_cast<__int128>(whole) + static_cast<__int128>(step);
+        out.origin[i] = static_cast<int64_t>(static_cast<uint64_t>(origin));
+        out.rest[i] = fraction - step;
     }
     return out;
 }
@@ -194,7 +204,7 @@ Walk walk_of(const Setup& setup, int scale, const std::vector<double>& embedding
     const int n = setup.lattice_dimension;
     const int place_forms = static_cast<int>(setup.conjugate_places.size());
     const double power = rescale_factor(setup.reference_scale, scale);
-    SplitCentre centre = split_centre(setup.reduced_center, power);
+    SplitCentre centre = split_centre(setup, power);
     Walk out(n, kFirstPlaceForm + place_forms);
     out.direction = setup.direction;
     out.transform = setup.basis->to_power_basis.data();
